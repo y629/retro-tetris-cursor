@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>テトリス</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>テトリス</h1>
+        </div>
+        
+        <div class="game-area">
+            <div class="game-info">
+                <div class="hold-section">
+                    <h3>ホールド</h3>
+                    <canvas id="hold-canvas" width="120" height="120"></canvas>
+                </div>
+                
+                <div class="score-section">
+                    <h3>スコア</h3>
+                    <div id="score">0</div>
+                </div>
+                
+                <div class="level-section">
+                    <h3>レベル</h3>
+                    <div id="level">1</div>
+                </div>
+                
+                <div class="lines-section">
+                    <h3>ライン</h3>
+                    <div id="lines">0</div>
+                </div>
+                
+                <div class="next-section">
+                    <h3>次のピース</h3>
+                    <canvas id="next-canvas" width="120" height="120"></canvas>
+                </div>
+                
+                <div class="controls-section">
+                    <h3>操作方法</h3>
+                    <div class="controls-text">
+                        <p>← → : 移動</p>
+                        <p>↓ : 高速落下</p>
+                        <p>↑ : 回転</p>
+                        <p>C : ホールド</p>
+                        <p>X : ハードドロップ</p>
+                        <p>Space : 一時停止</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="game-board-container">
+                <canvas id="game-canvas" width="300" height="600"></canvas>
+                <div id="game-over" class="game-over hidden">
+                    <h2>ゲームオーバー</h2>
+                    <p>最終スコア: <span id="final-score">0</span></p>
+                    <button id="restart-btn">もう一度プレイ</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-controls">
+            <button id="start-btn">スタート</button>
+            <button id="pause-btn">一時停止</button>
+            <button id="reset-btn">リセット</button>
+        </div>
+    </div>
+    
+    <script src="tetris.js"></script>
+</body>
+</html>
