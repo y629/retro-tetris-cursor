@@ -1,14 +1,199 @@
+/**
+ * 8bit風テトリスゲーム
+ * 
+ * @description レトロな8bit風デザインのテトリスゲーム
+ * @author Cursor AI
+ * @version 1.0.0
+ * @license MIT
+ * 
+ * @requires HTML5 Canvas API
+ * @requires Web Audio API (オプション)
+ * @requires DotGothic16 フォント
+ */
+
+/**
+ * ゲーム設定定数
+ * @type {Object}
+ */
+const GAME_CONFIG = {
+    // ボード設定
+    BOARD_WIDTH: 10,
+    BOARD_HEIGHT: 20,
+    CELL_SIZE: 30,
+    
+    // タイミング設定
+    FPS: 60,
+    FRAME_TIME: 1000 / 60, // 16.67ms
+    INITIAL_DROP_INTERVAL: 1000, // 1秒
+    MIN_DROP_INTERVAL: 50, // 最小落下間隔
+    LEVEL_DROP_REDUCTION: 50, // レベルアップ時の落下間隔減少
+    
+    // アニメーション設定
+    LINE_CLEAR_DURATION: 500,
+    HARD_DROP_DURATION: 50,
+    WINDOW_SHAKE_DURATION: 1000,
+    WINDOW_SHAKE_INTERVAL: 50,
+    
+    // スコア設定
+    SCORE_MULTIPLIERS: [0, 40, 100, 300, 1200], // 1-4ライン消去のスコア倍率
+    HARD_DROP_SCORE_MULTIPLIER: 2,
+    
+    // 音声設定
+    BGM_VOLUME: 0.1,
+    SFX_VOLUME: 0.4,
+    HOVER_SOUND_FREQ: 800,
+    HARD_DROP_SOUND_FREQ: 150,
+    GAME_OVER_FREQUENCIES: [440, 415, 392, 370, 349, 330, 311, 294],
+    
+    // エフェクト設定
+    WINDOW_SHAKE_INTENSITY: 10,
+    PARTICLE_COUNT: 4,
+    PARTICLE_DISTANCE: 20
+};
+
+/**
+ * バリデーション関数
+ */
+class Validator {
+    static isValidPiece(piece) {
+        return piece && 
+               typeof piece.type === 'string' && 
+               Array.isArray(piece.shape) && 
+               typeof piece.color === 'string';
+    }
+    
+    static isValidPosition(x, y) {
+        return typeof x === 'number' && 
+               typeof y === 'number' && 
+               !isNaN(x) && !isNaN(y);
+    }
+    
+    static isValidBoard(board) {
+        return Array.isArray(board) && 
+               board.length > 0 && 
+               board.every(row => Array.isArray(row));
+    }
+    
+    static isValidColor(color) {
+        return typeof color === 'string' && 
+               (color.startsWith('#') || color.startsWith('rgb'));
+    }
+}
+
+/**
+ * パフォーマンス最適化ユーティリティ
+ */
+class PerformanceOptimizer {
+    static debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    static throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+    
+    static requestAnimationFramePolyfill() {
+        return window.requestAnimationFrame ||
+               window.webkitRequestAnimationFrame ||
+               window.mozRequestAnimationFrame ||
+               function(callback) {
+                   window.setTimeout(callback, 1000 / 60);
+               };
+    }
+}
+
+/**
+ * エラーハンドリングユーティリティ
+ */
+class ErrorHandler {
+    static handleError(error, context) {
+        console.error(`[${context}] Error:`, error);
+        
+        // ユーザーに分かりやすいエラーメッセージを表示
+        this.showUserFriendlyError(context);
+    }
+    
+    static showUserFriendlyError(context) {
+        const errorMessages = {
+            'audio': '音声機能が利用できません。ブラウザの設定を確認してください。',
+            'canvas': 'ゲーム画面の表示に問題があります。ブラウザを更新してください。',
+            'game': 'ゲームの実行中にエラーが発生しました。ページを再読み込みしてください。'
+        };
+        
+        const message = errorMessages[context] || '予期しないエラーが発生しました。';
+        
+        // エラーメッセージを表示（既存のUIに統合）
+        this.displayErrorNotification(message);
+    }
+    
+    static displayErrorNotification(message) {
+        // 既存のゲームオーバー画面を利用してエラーを表示
+        const gameOver = document.getElementById('game-over');
+        if (gameOver) {
+            const errorTitle = gameOver.querySelector('h2');
+            const errorMessage = gameOver.querySelector('p');
+            
+            if (errorTitle) errorTitle.textContent = 'エラー';
+            if (errorMessage) errorMessage.textContent = message;
+            
+            gameOver.classList.remove('hidden');
+        }
+        }
+}
+
 // テトリスゲームの実装
 class TetrisGame {
     constructor() {
+        try {
+            this.initializeCanvas();
+            this.initializeGameState();
+            this.initializeBoard();
+            this.setupEventListeners();
+            this.setupAudio();
+            this.generateNextPiece();
+            this.spawnNewPiece();
+        } catch (error) {
+            ErrorHandler.handleError(error, 'game');
+        }
+    }
+    
+    initializeCanvas() {
         this.canvas = document.getElementById('game-canvas');
-        this.ctx = this.canvas.getContext('2d');
         this.nextCanvas = document.getElementById('next-canvas');
+        
+        if (!this.canvas || !this.nextCanvas) {
+            throw new Error('Required canvas elements not found');
+        }
+        
+        this.ctx = this.canvas.getContext('2d');
         this.nextCtx = this.nextCanvas.getContext('2d');
         
-        this.BOARD_WIDTH = 10;
-        this.BOARD_HEIGHT = 20;
-        this.CELL_SIZE = 30;
+        if (!this.ctx || !this.nextCtx) {
+            throw new Error('Failed to get canvas context');
+        }
+    }
+    
+    initializeGameState() {
+        this.BOARD_WIDTH = GAME_CONFIG.BOARD_WIDTH;
+        this.BOARD_HEIGHT = GAME_CONFIG.BOARD_HEIGHT;
+        this.CELL_SIZE = GAME_CONFIG.CELL_SIZE;
         
         this.board = [];
         this.currentPiece = null;
@@ -20,20 +205,14 @@ class TetrisGame {
         this.isPaused = false;
         this.gameLoop = null;
         this.dropTime = 0;
-        this.dropInterval = 1000; // 1秒
+        this.dropInterval = GAME_CONFIG.INITIAL_DROP_INTERVAL;
         this.lineAnimation = [];
-        this.animationDuration = 500; // アニメーション時間（ミリ秒）
+        this.animationDuration = GAME_CONFIG.LINE_CLEAR_DURATION;
         this.holdPiece = null;
         this.canHold = true;
         this.hardDropEffect = null;
-        this.hardDropAnimationDuration = 50; // ハードドロップエフェクト時間（ミリ秒）
-        this.isHardDropping = false; // ハードドロップ中のフラグ
-        
-        this.initializeBoard();
-        this.setupEventListeners();
-        this.setupAudio();
-        this.generateNextPiece();
-        this.spawnNewPiece();
+        this.hardDropAnimationDuration = GAME_CONFIG.HARD_DROP_DURATION;
+        this.isHardDropping = false;
     }
     
     // テトリスピースの定義（8bit風カラーパレット）
@@ -111,19 +290,24 @@ class TetrisGame {
     
     // オーディオ設定
     setupAudio() {
-        this.bgm = new Audio();
-        this.bgm.loop = true;
-        this.bgm.volume = 0.3;
-        
-        // Web Audio APIを使用してBGMを生成
-        this.createBGM();
-        
-        // 効果音用のAudioContext
-        this.soundContext = null;
         try {
-            this.soundContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.bgm = new Audio();
+            this.bgm.loop = true;
+            this.bgm.volume = GAME_CONFIG.BGM_VOLUME;
+            
+            // Web Audio APIを使用してBGMを生成
+            this.createBGM();
+            
+            // 効果音用のAudioContext
+            this.soundContext = null;
+            try {
+                this.soundContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (error) {
+                console.log('Sound effects not supported');
+                ErrorHandler.handleError(error, 'audio');
+            }
         } catch (error) {
-            console.log('Sound effects not supported');
+            ErrorHandler.handleError(error, 'audio');
         }
     }
     
@@ -257,7 +441,7 @@ class TetrisGame {
             gainNode.connect(this.soundContext.destination);
             
             // 8bit風の短い効果音
-            oscillator.frequency.setValueAtTime(800, this.soundContext.currentTime);
+            oscillator.frequency.setValueAtTime(GAME_CONFIG.HOVER_SOUND_FREQ, this.soundContext.currentTime);
             oscillator.type = 'square';
             
             gainNode.gain.setValueAtTime(0.1, this.soundContext.currentTime);
@@ -283,7 +467,7 @@ class TetrisGame {
             gainNode.connect(this.soundContext.destination);
             
             // 鈍い効果音（低周波数で短時間）
-            oscillator.frequency.setValueAtTime(150, this.soundContext.currentTime);
+            oscillator.frequency.setValueAtTime(GAME_CONFIG.HARD_DROP_SOUND_FREQ, this.soundContext.currentTime);
             oscillator.type = 'sawtooth';
             
             gainNode.gain.setValueAtTime(0.3, this.soundContext.currentTime);
@@ -303,7 +487,7 @@ class TetrisGame {
         
         try {
             // ゲームオーバー音（下降音階）
-            const frequencies = [440, 415, 392, 370, 349, 330, 311, 294];
+            const frequencies = GAME_CONFIG.GAME_OVER_FREQUENCIES;
             const duration = 0.15;
             
             frequencies.forEach((freq, index) => {
@@ -339,9 +523,9 @@ class TetrisGame {
         const originalTransform = gameContainer.style.transform;
         
         // 煽りアニメーション
-        const shakeIntensity = 10;
-        const shakeDuration = 1000; // 1秒
-        const shakeInterval = 50; // 50ms間隔
+        const shakeIntensity = GAME_CONFIG.WINDOW_SHAKE_INTENSITY;
+        const shakeDuration = GAME_CONFIG.WINDOW_SHAKE_DURATION; // 1秒
+        const shakeInterval = GAME_CONFIG.WINDOW_SHAKE_INTERVAL; // 50ms間隔
         const shakeCount = shakeDuration / shakeInterval;
         
         let currentShake = 0;
@@ -503,6 +687,16 @@ class TetrisGame {
     
     // ピースを移動
     movePiece(deltaX, deltaY) {
+        if (!Validator.isValidPosition(deltaX, deltaY)) {
+            console.warn('Invalid position values:', deltaX, deltaY);
+            return false;
+        }
+        
+        if (!Validator.isValidPiece(this.currentPiece)) {
+            console.warn('Invalid current piece');
+            return false;
+        }
+        
         if (!this.checkCollision(this.currentPiece, deltaX, deltaY)) {
             this.currentPiece.x += deltaX;
             this.currentPiece.y += deltaY;
@@ -603,7 +797,7 @@ class TetrisGame {
     
     // スコア更新
     updateScore(linesCleared) {
-        const points = [0, 40, 100, 300, 1200][linesCleared] * this.level;
+        const points = GAME_CONFIG.SCORE_MULTIPLIERS[linesCleared] * this.level;
         this.score += points;
         this.lines += linesCleared;
         
@@ -611,7 +805,7 @@ class TetrisGame {
         const newLevel = Math.floor(this.lines / 10) + 1;
         if (newLevel > this.level) {
             this.level = newLevel;
-            this.dropInterval = Math.max(50, 1000 - (this.level - 1) * 50);
+            this.dropInterval = Math.max(GAME_CONFIG.MIN_DROP_INTERVAL, GAME_CONFIG.INITIAL_DROP_INTERVAL - (this.level - 1) * GAME_CONFIG.LEVEL_DROP_REDUCTION);
         }
         
         this.updateDisplay();
@@ -751,14 +945,14 @@ class TetrisGame {
     
     // 8bit風のパーティクル効果
     draw8bitParticles(centerX, centerY, progress) {
-        const particleCount = 4;
+        const particleCount = GAME_CONFIG.PARTICLE_COUNT;
         const particleProgress = (progress - 0.5) * 2;
         
         this.ctx.save();
         
         for (let i = 0; i < particleCount; i++) {
             const angle = (i / particleCount) * Math.PI * 2;
-            const distance = particleProgress * 20;
+            const distance = particleProgress * GAME_CONFIG.PARTICLE_DISTANCE;
             const particleX = Math.floor(centerX + Math.cos(angle) * distance);
             const particleY = Math.floor(centerY + Math.sin(angle) * distance);
             const size = Math.max(1, Math.floor((1 - particleProgress) * 3));
@@ -840,7 +1034,7 @@ class TetrisGame {
         
         // ハードドロップボーナススコア（落下距離 × 2）
         const dropDistance = dropPosition.y - this.currentPiece.y;
-        this.score += dropDistance * 2;
+        this.score += dropDistance * GAME_CONFIG.HARD_DROP_SCORE_MULTIPLIER;
         this.updateDisplay();
     }
     
@@ -1069,7 +1263,7 @@ class TetrisGame {
         if (this.gameLoop) return;
         
         this.isPaused = false;
-        this.gameLoop = setInterval(() => this.update(), 16); // 60 FPS
+        this.gameLoop = setInterval(() => this.update(), GAME_CONFIG.FRAME_TIME); // 60 FPS
         this.dropTime = 0;
         
         // ゲーム開始後にボタンを表示
@@ -1083,7 +1277,7 @@ class TetrisGame {
     update() {
         if (this.isPaused || this.isGameOver) return;
         
-        this.dropTime += 16;
+        this.dropTime += GAME_CONFIG.FRAME_TIME;
         
         if (this.dropTime >= this.dropInterval) {
             if (!this.movePiece(0, 1)) {
@@ -1183,27 +1377,9 @@ class TetrisGame {
     
     // ゲームリセット
     resetGame() {
-        clearInterval(this.gameLoop);
-        this.gameLoop = null;
-        
-        // BGM停止
-        this.stopBGM();
-        
+        this.cleanup();
+        this.initializeGameState();
         this.initializeBoard();
-        this.score = 0;
-        this.level = 1;
-        this.lines = 0;
-        this.isGameOver = false;
-        this.isPaused = false;
-        this.dropTime = 0;
-        this.dropInterval = 1000;
-        this.lineAnimation = [];
-        this.holdPiece = null;
-        this.canHold = true;
-        this.hardDropEffect = null;
-        this.hardDropAnimationDuration = 50;
-        this.isHardDropping = false;
-        
         this.updateDisplay();
         this.generateNextPiece();
         this.spawnNewPiece();
@@ -1217,6 +1393,30 @@ class TetrisGame {
         this.hideGameButtons();
         
         document.getElementById('game-over').classList.add('hidden');
+    }
+    
+    // リソースクリーンアップ
+    cleanup() {
+        // ゲームループを停止
+        if (this.gameLoop) {
+            clearInterval(this.gameLoop);
+            this.gameLoop = null;
+        }
+        
+        // BGM停止
+        this.stopBGM();
+        
+        // 音声コンテキストをクリーンアップ
+        if (this.soundContext && this.soundContext.state !== 'closed') {
+            this.soundContext.close();
+        }
+        
+        // アニメーションをクリア
+        this.lineAnimation = [];
+        this.hardDropEffect = null;
+        
+        // イベントリスナーをクリーンアップ（必要に応じて）
+        // 注意: キーボードイベントはグローバルなので削除しない
     }
 }
 
