@@ -1,6 +1,7 @@
 # 🎮 8bit風テトリスゲーム
 
 [![Made with Cursor](https://img.shields.io/badge/Made%20with-Cursor%20AI-00ff00?style=for-the-badge&logo=cursor&logoColor=white)](https://cursor.sh)
+[![Demo](https://img.shields.io/badge/Demo-Play%20Now-ff0000?style=for-the-badge&logo=github&logoColor=white)](https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/)
 
 レトロな8bit風デザインのテトリスゲームです。ピクセルアート風のブロック、レトロな効果音、派手なアニメーションで楽しめる本格的なテトリスゲームです。
 
@@ -28,6 +29,10 @@
 
 ## 🚀 プレイ方法
 
+### 🌐 オンラインデモ
+**[🎮 プレイする](https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/)** （GitHub Pages）
+
+### 💻 ローカルでプレイ
 1. このリポジトリをクローンまたはダウンロード
 2. `tetris.html`をブラウザで開く
 3. 「スタート」ボタンをクリックしてゲーム開始
