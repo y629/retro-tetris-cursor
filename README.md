@@ -1,7 +1,7 @@
 # 🎮 8bit風テトリスゲーム
 
 [![Made with Cursor](https://img.shields.io/badge/Made%20with-Cursor%20AI-00ff00?style=for-the-badge&logo=cursor&logoColor=white)](https://cursor.sh)
-[![Demo](https://img.shields.io/badge/Demo-Play%20Now-ff0000?style=for-the-badge&logo=github&logoColor=white)](https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/)
+[![Demo](https://img.shields.io/badge/Demo-Play%20Now-ff0000?style=for-the-badge&logo=github&logoColor=white)](https://y629.github.io/retro-tetris-cursor/)
 
 レトロな8bit風デザインのテトリスゲームです。ピクセルアート風のブロック、レトロな効果音、派手なアニメーションで楽しめる本格的なテトリスゲームです。
 
@@ -30,11 +30,11 @@
 ## 🚀 プレイ方法
 
 ### 🌐 オンラインデモ
-**[🎮 プレイする](https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/)** （GitHub Pages）
+**[🎮 プレイする](https://y629.github.io/retro-tetris-cursor/)** （GitHub Pages）
 
 ### 💻 ローカルでプレイ
 1. このリポジトリをクローンまたはダウンロード
-2. `tetris.html`をブラウザで開く
+2. `index.html`をブラウザで開く
 3. 「スタート」ボタンをクリックしてゲーム開始
 4. 楽しんでください！
 
@@ -50,7 +50,7 @@
 
 ```
 tetris-game/
-├── tetris.html      # メインHTMLファイル
+├── index.html       # メインHTMLファイル
 ├── tetris.js        # ゲームロジック
 ├── style.css        # 8bit風スタイル
 └── README.md        # このファイル
