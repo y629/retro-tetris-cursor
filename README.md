@@ -1,6 +1,10 @@
 # 🎮 8bit風テトリスゲーム
 
+[![Made with Cursor](https://img.shields.io/badge/Made%20with-Cursor%20AI-00ff00?style=for-the-badge&logo=cursor&logoColor=white)](https://cursor.sh)
+
 レトロな8bit風デザインのテトリスゲームです。ピクセルアート風のブロック、レトロな効果音、派手なアニメーションで楽しめる本格的なテトリスゲームです。
+
+> 🚀 **Cursor AI** を使用して開発されたプロジェクトです！
 
 ## ✨ 特徴
 
@@ -35,6 +39,7 @@
 - **CSS3**: 8bit風のスタイリングとアニメーション
 - **JavaScript**: ゲームロジックとWeb Audio API
 - **フォント**: DotGothic16（日本語対応8bit風フォント）
+- **開発環境**: Cursor（AI支援コーディング）
 
 ## 📁 ファイル構成
 
@@ -78,6 +83,16 @@ tetris-game/
 ## 🤝 貢献
 
 バグ報告や機能提案は、GitHubのIssuesでお気軽にお知らせください！
+
+## 🎯 開発について
+
+このプロジェクトは **Cursor AI** を使用して開発されました。AI支援コーディングにより、効率的で高品質なコードを実現しています。
+
+- **Cursor AI**: 世界最高のAI支援IDE
+- **開発効率**: AIによる迅速なコード生成とデバッグ
+- **コード品質**: AIによる最適化とベストプラクティスの適用
+
+👉 **[Cursor AI](https://cursor.sh)** を試してみてください！
 
 ---
 
