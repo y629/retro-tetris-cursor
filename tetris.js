@@ -25,8 +25,8 @@ const GAME_CONFIG = {
     FPS: 60,
     FRAME_TIME: 1000 / 60, // 16.67ms
     INITIAL_DROP_INTERVAL: 1000, // 1秒
-    MIN_DROP_INTERVAL: 50, // 最小落下間隔
-    LEVEL_DROP_REDUCTION: 50, // レベルアップ時の落下間隔減少
+    MIN_DROP_INTERVAL: 100, // 最小落下間隔（適度な速度に調整）
+    LEVEL_DROP_REDUCTION: 80, // レベルアップ時の落下間隔減少（緩やかに調整）
     
     // アニメーション設定
     LINE_CLEAR_DURATION: 500,
@@ -37,6 +37,10 @@ const GAME_CONFIG = {
     // スコア設定
     SCORE_MULTIPLIERS: [0, 40, 100, 300, 1200], // 1-4ライン消去のスコア倍率
     HARD_DROP_SCORE_MULTIPLIER: 2,
+    
+    // ren（連続ライン消去）設定
+    REN_BONUS_MULTIPLIER: 0.5, // renボーナス倍率（基本スコアの50%）
+    REN_BONUS_CAP: 10,         // renボーナスの上限（10回目まで）
     
     // 音声設定
     BGM_VOLUME: 0.1,
@@ -51,11 +55,40 @@ const GAME_CONFIG = {
     PARTICLE_DISTANCE: 20,
     
     // ウルト設定
-    ULT_CHARGE_PER_LINE: 25, // 1ライン消去で25%チャージ
+    ULT_CHARGE_PER_LINE: 20, // 1ライン消去で20%チャージ
     ULT_CHARGE_PER_PIECE: 5,  // 1ピース固定で5%チャージ
     ULT_ACTIVATION_COST: 100, // ウルト発動に必要なチャージ量
-    ULT_DURATION: 5000,       // ウルト効果持続時間（5秒）
-    ULT_COOLDOWN: 10000       // ウルト使用後のクールダウン（10秒）
+    ULT_DURATION: 2000,       // ウルト効果持続時間（2秒）
+    ULT_COOLDOWN: 10000,      // ウルト使用後のクールダウン（10秒）
+    
+    // ボム設定
+    BOMB_EXPLOSION_RANGE: 2,  // ボム爆発範囲（半径）
+    BOMB_EXPLOSION_SCORE: 800, // ボム爆発時のスコア
+    
+    // アニメーション設定
+    BOMB_CLEAR_ANIMATION_DURATION: 800, // ボムブロック消去エフェクト時間
+    EXPLOSION_EFFECT_DURATION: 800,     // 爆発エフェクト表示時間
+    EXPLOSION_DELAY_BEFORE_DROP: 600,   // 爆発後ブロック落下までの遅延
+    DROP_ANIMATION_DELAY: 100,          // ブロック落下後のライン消去チェック遅延
+    
+    // カウントダウン設定
+    COUNTDOWN_UPDATE_INTERVAL: 1000,    // カウントダウン更新間隔（1秒）
+    COOLDOWN_UI_UPDATE_OFFSET: 20,     // クールダウン終了後のUI更新オフセット
+    
+    // レベルアップ設定
+    LINES_PER_LEVEL: 5,                 // レベルアップに必要なライン数（適度なペースに調整）
+    
+    // 音声設定
+    SOUND_GAIN_VALUE: 0.3,             // 音声の基本音量
+    SOUND_FADE_OUT_VALUE: 0.01,        // 音声のフェードアウト値
+    SOUND_DURATION_SHORT: 0.1,         // 短い音声の持続時間
+    SOUND_DURATION_MEDIUM: 0.15,       // 中程度の音声の持続時間
+    SOUND_DURATION_LONG: 0.3,          // 長い音声の持続時間
+    
+    // BGM設定
+    BGM_BASE_TEMPO: 1.0,               // 基本テンポ（レベル1）
+    BGM_TEMPO_INCREASE_PER_LEVEL: 0.3, // レベルごとのテンポ増加
+    BGM_MAX_TEMPO: 5.0                 // 最大テンポ（レベル制限）
 };
 
 /**
@@ -175,6 +208,8 @@ class TetrisGame {
             this.setupEventListeners();
             this.setupAudio();
             this.generateNextPiece();
+            this.generateNextNextPiece();
+            this.generateNextNextNextPiece();
             this.spawnNewPiece();
         } catch (error) {
             ErrorHandler.handleError(error, 'game');
@@ -205,14 +240,17 @@ class TetrisGame {
         this.board = [];
         this.currentPiece = null;
         this.nextPiece = null;
+        this.nextNextPiece = null;
+        this.nextNextNextPiece = null;
         this.score = 0;
-        this.level = 1;
+        this.level = 1; // 初期レベルを1に戻して、初心者にも優しい速度で開始
         this.lines = 0;
         this.isGameOver = false;
         this.isPaused = false;
         this.gameLoop = null;
         this.dropTime = 0;
-        this.dropInterval = GAME_CONFIG.INITIAL_DROP_INTERVAL;
+        // 初期レベルに応じた落下間隔を設定
+        this.dropInterval = GAME_CONFIG.INITIAL_DROP_INTERVAL; // レベル1は初期間隔
         this.lineAnimation = [];
         this.animationDuration = GAME_CONFIG.LINE_CLEAR_DURATION;
         this.holdPiece = null;
@@ -227,6 +265,11 @@ class TetrisGame {
         this.ultStartTime = 0;
         this.ultCooldownEnd = 0;
         this.ultEffect = null;
+        
+        // ren（連続ライン消去）関連の状態
+        this.renCount = 0;
+        this.lastLineClear = false; // 前回ブロックを置いた時にライン消しが発生したか
+        this.renTimeout = 2000; // 2秒以内にライン消去しないとrenがリセット
     }
     
     // テトリスピースの定義（8bit風カラーパレット）
@@ -283,12 +326,23 @@ class TetrisGame {
     
     // ボードの初期化
     initializeBoard() {
-        this.board = Array(this.BOARD_HEIGHT).fill().map(() => Array(this.BOARD_WIDTH).fill(0));
+        this.board = [];
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            this.board[y] = Array(this.BOARD_WIDTH).fill(0);
+        }
+        
+        // デバッグ用：ボードの初期状態を確認
+        console.log(`Board initialized: ${this.BOARD_WIDTH}x${this.BOARD_HEIGHT}`);
+        console.log(`Board length: ${this.board.length}`);
+        console.log(`Board structure:`, this.board.map((row, index) => `Row ${index}: [${row.join(', ')}]`));
     }
     
     // イベントリスナーの設定
     setupEventListeners() {
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+        
+        // スクロール防止の強化
+        this.preventScroll();
         
         // ボタンにホバー音効果を追加
         const buttons = document.querySelectorAll('button');
@@ -305,6 +359,30 @@ class TetrisGame {
         const ultBtn = document.getElementById('ult-btn');
         if (ultBtn) {
             ultBtn.addEventListener('click', () => this.activateUlt());
+        }
+    }
+    
+    // スクロール防止の強化
+    preventScroll() {
+        // タッチスクロールの防止
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        
+        // マウスホイールスクロールの防止
+        document.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+        
+        // キーボードスクロールの防止
+        document.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+        
+        // ゲームコンテナ内でのスクロールも防止
+        const gameContainer = document.querySelector('.game-container');
+        if (gameContainer) {
+            gameContainer.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+            gameContainer.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
         }
     }
     
@@ -361,6 +439,7 @@ class TetrisGame {
             this.bgmNotes = notes;
             this.currentNoteIndex = 0;
             this.noteStartTime = 0;
+            this.currentBGMLevel = 1; // 現在のBGMレベルを追跡
             
         } catch (error) {
             console.log('Audio not supported');
@@ -389,6 +468,26 @@ class TetrisGame {
         }
     }
     
+    // BGMテンポをレベルに応じて更新
+    updateBGMTempo() {
+        if (!this.audioContext || !this.isBGMPlaying) return;
+        
+        // 現在のレベルに基づいてテンポを計算
+        const newBGMLevel = Math.min(this.level, 20); // レベル20で最大テンポ
+        
+        if (newBGMLevel !== this.currentBGMLevel) {
+            this.currentBGMLevel = newBGMLevel;
+            
+            // 共通の倍率計算を使用
+            const tempoMultiplier = Math.min(
+                GAME_CONFIG.BGM_MAX_TEMPO,
+                GAME_CONFIG.BGM_BASE_TEMPO + (this.currentBGMLevel - 1) * GAME_CONFIG.BGM_TEMPO_INCREASE_PER_LEVEL
+            );
+            
+            console.log(`BGMテンポ更新: レベル${this.currentBGMLevel}, テンポ倍率: ${tempoMultiplier.toFixed(2)}`);
+        }
+    }
+    
     // 次の音符を再生
     playNextNote() {
         if (!this.isBGMPlaying || !this.audioContext) return;
@@ -414,10 +513,17 @@ class TetrisGame {
         // 次の音符へ
         this.currentNoteIndex = (this.currentNoteIndex + 1) % this.bgmNotes.length;
         
-        // 次の音符をスケジュール
+        // 現在のテンポに基づいて次の音符をスケジュール
+        const tempoMultiplier = Math.min(
+            GAME_CONFIG.BGM_MAX_TEMPO,
+            GAME_CONFIG.BGM_BASE_TEMPO + (this.currentBGMLevel - 1) * GAME_CONFIG.BGM_TEMPO_INCREASE_PER_LEVEL
+        );
+        
+        const nextNoteDelay = (note.duration * 1000) / tempoMultiplier;
+        
         setTimeout(() => {
             this.playNextNote();
-        }, note.duration * 1000);
+        }, nextNoteDelay);
     }
     
     // ライン消去効果音
@@ -614,7 +720,7 @@ class TetrisGame {
         if (!holdCanvas) return;
         
         const holdCtx = holdCanvas.getContext('2d');
-        holdCtx.fillStyle = '#000000';
+        holdCtx.fillStyle = '#121212'; // より黒寄りのグレーに変更
         holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
         
         if (this.holdPiece) {
@@ -651,21 +757,58 @@ class TetrisGame {
         };
     }
     
-    // 新しいピースをスポーン
+    generateNextNextPiece() {
+        const pieceTypes = Object.keys(this.pieces);
+        const randomType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+        this.nextNextPiece = {
+            type: randomType,
+            shape: JSON.parse(JSON.stringify(this.pieces[randomType].shape)),
+            color: this.pieces[randomType].color,
+            x: 0,
+            y: 0
+        };
+    }
+    
+    generateNextNextNextPiece() {
+        const pieceTypes = Object.keys(this.pieces);
+        const randomType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+        this.nextNextNextPiece = {
+            type: randomType,
+            shape: JSON.parse(JSON.stringify(this.pieces[randomType].shape)),
+            color: this.pieces[randomType].color,
+            x: 0,
+            y: 0
+        };
+    }
+    
+    // spawnNewPiece() を少し堅牢に
     spawnNewPiece() {
+        // キューが欠けていたら補充
+        if (!this.nextPiece) this.generateNextPiece();
+        if (!this.nextNextPiece) this.generateNextNextPiece();
+        if (!this.nextNextNextPiece) this.generateNextNextNextPiece();
+
         this.currentPiece = this.nextPiece;
         this.currentPiece.x = Math.floor(this.BOARD_WIDTH / 2) - Math.floor(this.currentPiece.shape[0].length / 2);
         this.currentPiece.y = 0;
-        
-        this.generateNextPiece();
+
+        // 繰り上げ
+        this.nextPiece = this.nextNextPiece;
+        this.nextNextPiece = this.nextNextNextPiece;
+
+        // 末尾を補充
+        this.generateNextNextNextPiece();
+
+        // 描画更新
         this.drawNextPiece();
+        this.drawNextNextPiece();
+        this.drawNextNextNextPiece();
         this.drawHoldPiece();
-        
-        // ゲームオーバーチェック
-        if (this.checkCollision(this.currentPiece, 0, 0)) {
-            this.gameOver();
-        }
+        this.updateDisplay();
+
+        if (this.checkCollision(this.currentPiece, 0, 0)) this.gameOver();
     }
+
     
     // 衝突検出
     checkCollision(piece, deltaX, deltaY) {
@@ -756,19 +899,40 @@ class TetrisGame {
                     const boardY = this.currentPiece.y + y;
                     const boardX = this.currentPiece.x + x;
                     if (boardY >= 0) {
-                        this.board[boardY][boardX] = this.currentPiece.color;
+                        // ボムブロックの場合は特別な識別子を使用
+                        if (this.currentPiece.isBomb) {
+                            this.board[boardY][boardX] = 'BOMB';
+                        } else {
+                            this.board[boardY][boardX] = this.currentPiece.color;
+                        }
                     }
-                }
+                }   
             }
         }
         
         this.canHold = true; // ピースが固定されたらホールド可能になる
         console.log('Piece locked, canHold set to true');
         
+        // ハードドロップ時は音を鳴らさない（重複を防ぐ）
+        if (!this.isHardDropping) {
+            this.playHardDropSound();
+        }
+        
         // ウルトゲージをチャージ
         this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_PIECE);
         
-        this.clearLines();
+        // ライン消去処理を実行
+        const linesCleared = this.clearLines();
+        
+        // ライン消去が発生しなかった場合、renをリセット
+        if (linesCleared === 0) {
+            this.renCount = 0;
+            this.lastLineClear = false;
+            console.log('No lines cleared, ren reset to 0');
+            // renの表示を即座に更新
+            this.updateDisplay();
+        }
+        
         this.spawnNewPiece();
     }
     
@@ -776,7 +940,7 @@ class TetrisGame {
     clearLines() {
         // アニメーション中は新しいライン消去を開始しない
         if (this.lineAnimation.length > 0) {
-            return;
+            return 0;
         }
         
         const linesToClear = [];
@@ -789,8 +953,16 @@ class TetrisGame {
         }
         
         if (linesToClear.length > 0) {
+            // デバッグ用：ライン消去前のボード状態を確認
+            console.log(`Before line clear - Lines to clear: ${linesToClear.join(', ')}`);
+            console.log(`Board height before clear: ${this.board.length}`);
+            console.log(`Board structure before clear:`, this.board.map((row, index) => `Row ${index}: [${row.join(', ')}]`));
+            
             this.startLineAnimation(linesToClear);
+            return linesToClear.length; // ライン消去数を返す
         }
+        
+        return 0; // ライン消去が発生しなかった場合は0を返す
     }
     
     // ライン消去アニメーション開始
@@ -813,13 +985,58 @@ class TetrisGame {
         // 効果音再生
         this.playLineClearSound(lines.length);
         
-        // ラインを削除
-        lines.forEach(line => {
-            this.board.splice(line, 1);
-            this.board.unshift(Array(this.BOARD_WIDTH).fill(0));
-        });
+        // 削除するラインの情報を保存（元の配列を変更しない）
+        const linesToRemove = [...lines];
         
-        this.updateScore(lines.length);
+        // ボードの状態をバックアップ
+        const originalBoard = this.board.map(row => [...row]);
+        
+        try {
+            // より安全なライン消去処理
+            // 1. 完成したラインを特定して削除
+            const newBoard = [];
+            
+            // 下から上に向かって処理（インデックスのずれを防ぐ）
+            for (let y = this.BOARD_HEIGHT - 1; y >= 0; y--) {
+                // この行が消去対象でない場合のみ新しいボードに追加
+                if (!linesToRemove.includes(y)) {
+                    newBoard.unshift([...this.board[y]]);
+                }
+            }
+            
+            // 2. 削除されたライン数分だけ上に空のラインを追加
+            for (let i = 0; i < linesToRemove.length; i++) {
+                newBoard.unshift(Array(this.BOARD_WIDTH).fill(0));
+            }
+            
+            // 3. 新しいボードを適用
+            this.board = newBoard;
+            
+            // ボードの状態を確認（デバッグ用）
+            console.log(`Lines cleared: ${linesToRemove.join(', ')}`);
+            console.log(`Board height after clear: ${this.board.length}`);
+            console.log(`Expected board height: ${this.BOARD_HEIGHT}`);
+            
+            // ボードの高さが正しいかチェック
+            if (this.board.length !== this.BOARD_HEIGHT) {
+                console.error(`Board height mismatch! Expected: ${this.BOARD_HEIGHT}, Actual: ${this.board.length}`);
+                // ボードの高さを修正
+                while (this.board.length < this.BOARD_HEIGHT) {
+                    this.board.unshift(Array(this.BOARD_WIDTH).fill(0));
+                }
+                while (this.board.length > this.BOARD_HEIGHT) {
+                    this.board.shift();
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error during line clearing:', error);
+            // エラーが発生した場合は元のボードを復元
+            this.board = originalBoard;
+            return;
+        }
+        
+        this.updateScore(linesToRemove.length);
         
         // ライン削除後に再度ライン消去チェックを行う
         // これにより連続してラインが消える場合に対応
@@ -830,38 +1047,175 @@ class TetrisGame {
     
     // スコア更新
     updateScore(linesCleared) {
-        const points = GAME_CONFIG.SCORE_MULTIPLIERS[linesCleared] * this.level;
-        this.score += points;
-        this.lines += linesCleared;
+        // linesClearedの値を安全な範囲に制限（0-4）
+        const safeLinesCleared = Math.max(0, Math.min(linesCleared, 4));
+        
+        // スコア倍率が存在するかチェック
+        const scoreMultiplier = GAME_CONFIG.SCORE_MULTIPLIERS[safeLinesCleared];
+        if (typeof scoreMultiplier !== 'number' || isNaN(scoreMultiplier)) {
+            console.warn(`Invalid score multiplier for linesCleared: ${linesCleared}, using 0`);
+            return;
+        }
+        
+        const basePoints = scoreMultiplier * this.level;
+        
+        // 基本スコアが有効な数値かチェック
+        if (isNaN(basePoints)) {
+            console.warn(`Invalid base points calculated: ${basePoints}, linesCleared: ${linesCleared}, level: ${this.level}`);
+            return;
+        }
+        
+        // ren（連続ライン消去）ボーナスを計算
+        const renBonus = this.calculateRenBonus(safeLinesCleared, basePoints);
+        const totalPoints = basePoints + renBonus;
+        
+        // 合計スコアが有効な数値かチェック
+        if (isNaN(totalPoints)) {
+            console.warn(`Invalid total points calculated: ${totalPoints}, basePoints: ${basePoints}, renBonus: ${renBonus}`);
+            return;
+        }
+        
+        this.score += totalPoints;
+        this.lines += safeLinesCleared;
         
         // ウルトゲージをチャージ
-        this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_LINE * linesCleared);
+        this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_LINE * safeLinesCleared);
         
-        // レベルアップ（10ライン毎）
-        const newLevel = Math.floor(this.lines / 10) + 1;
+            // レベルアップ（設定されたライン数毎）
+        const newLevel = Math.floor(this.lines / GAME_CONFIG.LINES_PER_LEVEL) + 1;
         if (newLevel > this.level) {
             this.level = newLevel;
-            this.dropInterval = Math.max(GAME_CONFIG.MIN_DROP_INTERVAL, GAME_CONFIG.INITIAL_DROP_INTERVAL - (this.level - 1) * GAME_CONFIG.LEVEL_DROP_REDUCTION);
+            
+            // 共通の倍率計算を使用して落下間隔を更新
+            this.updateDropInterval();
+            
+            // 背景色を更新
+            this.updateBackgroundColor();
+            
+            // レベルアップ効果音を再生
+            this.playLevelUpSound();
+            
+            // BGMテンポを更新
+            this.updateBGMTempo();
+            
+            console.log(`レベルアップ！ レベル${this.level} - 落下間隔: ${this.dropInterval}ms`);
         }
         
         this.updateDisplay();
     }
     
+    // ren（連続ライン消去）ボーナスを計算
+    calculateRenBonus(linesCleared, basePoints) {
+        // 入力値の検証
+        if (typeof linesCleared !== 'number' || isNaN(linesCleared) || linesCleared <= 0) {
+            console.warn(`Invalid linesCleared in calculateRenBonus: ${linesCleared}`);
+            return 0;
+        }
+        
+        if (typeof basePoints !== 'number' || isNaN(basePoints)) {
+            console.warn(`Invalid basePoints in calculateRenBonus: ${basePoints}`);
+            return 0;
+        }
+        
+        if (linesCleared === 0) {
+            // ライン消しが発生しなかった場合、renをリセット
+            this.lastLineClear = false;
+            return 0;
+        }
+        
+        // ライン消しが発生した場合
+        if (this.lastLineClear) {
+            // 前回もライン消しが発生していた場合、renカウントを増加
+            this.renCount++;
+            console.log(`Ren continued: ${this.renCount}`);
+        } else {
+            // 前回はライン消しが発生していなかった場合、renを1から開始
+            this.renCount = 1;
+            console.log(`Ren started: ${this.renCount}`);
+        }
+        
+        // 今回ライン消しが発生したことを記録
+        this.lastLineClear = true;
+        
+        // renボーナスを計算（上限あり）
+        const cappedRen = Math.min(this.renCount, GAME_CONFIG.REN_BONUS_CAP);
+        const renBonus = Math.floor(basePoints * GAME_CONFIG.REN_BONUS_MULTIPLIER * cappedRen);
+        
+        // 計算結果の検証
+        if (isNaN(renBonus)) {
+            console.warn(`Invalid renBonus calculated: ${renBonus}, basePoints: ${basePoints}, cappedRen: ${cappedRen}`);
+            return 0;
+        }
+        
+        // renボーナス効果音を再生（renが2以上の場合）
+        if (this.renCount > 1) {
+            this.playRenBonusSound();
+        }
+        
+        return renBonus;
+    }
+    
+    // renボーナス効果音
+    playRenBonusSound() {
+        if (!this.soundContext) return;
+        
+        try {
+            // renボーナス音（上昇音階）
+            const frequencies = [523, 659, 784, 1047]; // C, E, G, C
+            const duration = 0.1;
+            
+            frequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = this.soundContext.createOscillator();
+                    const gainNode = this.soundContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.soundContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, this.soundContext.currentTime);
+                    oscillator.type = 'triangle';
+                    
+                    gainNode.gain.setValueAtTime(0.2, this.soundContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.soundContext.currentTime + duration);
+                    
+                    oscillator.start(this.soundContext.currentTime);
+                    oscillator.stop(this.soundContext.currentTime + duration);
+                }, index * duration * 1000);
+            });
+            
+        } catch (error) {
+            console.log('Failed to play ren bonus sound');
+        }
+    }
+    
     // 表示更新
     updateDisplay() {
         document.getElementById('score').textContent = this.score;
-        document.getElementById('level').textContent = this.level;
+        
+        // 共通の倍率計算を使用してテンポ倍率を表示
+        const tempoMultiplier = Math.min(
+            GAME_CONFIG.BGM_MAX_TEMPO,
+            GAME_CONFIG.BGM_BASE_TEMPO + (this.level - 1) * GAME_CONFIG.BGM_TEMPO_INCREASE_PER_LEVEL
+        );
+        document.getElementById('tempo-multiplier').textContent = tempoMultiplier.toFixed(1) + 'x';
+        
         document.getElementById('lines').textContent = this.lines;
+        
+        // ren数の表示を更新
+        const renElement = document.getElementById('ren');
+        if (renElement) {
+            renElement.textContent = this.renCount.toString();
+        }
     }
     
     // メインゲームボードを描画
     draw() {
-        // キャンバスをクリア
-        this.ctx.fillStyle = '#000000';
+        // キャンバスをクリア（よりグレーな背景）
+        this.ctx.fillStyle = '#121212'; // より黒寄りのグレーに変更
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // グリッド線を描画（8bit風）
-        this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+        this.ctx.strokeStyle = 'rgba(100, 100, 100, 0.4)'; // グレー背景に合わせて調整
         this.ctx.lineWidth = 1;
         for (let x = 0; x <= this.BOARD_WIDTH; x++) {
             this.ctx.beginPath();
@@ -891,8 +1245,13 @@ class TetrisGame {
                         // エフェクト描画
                         this.drawLineEffect(x, y, progress);
                     } else {
-                        // 8bit風ピクセルアート描画
-                        this.drawPixelBlock(x, y, this.board[y][x]);
+                        // ボムブロックかどうかチェック
+                        if (this.board[y][x] === 'BOMB') {
+                            this.drawBombBlockOnBoard(x, y);
+                        } else {
+                            // 8bit風ピクセルアート描画
+                            this.drawPixelBlock(x, y, this.board[y][x]);
+                        }
                     }
                 }
             }
@@ -901,13 +1260,20 @@ class TetrisGame {
         // 落下位置プレビューを描画
         const dropPosition = this.getDropPosition();
         if (dropPosition && dropPosition.y !== this.currentPiece.y) {
-            this.ctx.globalAlpha = 0.3; // 透明度を設定
+            this.ctx.globalAlpha = 0.2; // 透明度を設定
             for (let y = 0; y < dropPosition.shape.length; y++) {
                 for (let x = 0; x < dropPosition.shape[y].length; x++) {
                     if (dropPosition.shape[y][x]) {
                         const drawX = dropPosition.x + x;
                         const drawY = dropPosition.y + y;
-                        this.drawPixelBlock(drawX, drawY, this.currentPiece.color);
+                        
+                        if (this.currentPiece.isBomb) {
+                            // ボムブロックの落下位置予測を爆弾絵文字で表示
+                            this.drawBombPreview(drawX, drawY);
+                        } else {
+                            // 通常のピースの落下位置予測
+                            this.drawPixelBlock(drawX, drawY, this.currentPiece.color);
+                        }
                     }
                 }
             }
@@ -930,7 +1296,14 @@ class TetrisGame {
                     if (this.currentPiece.shape[y][x]) {
                         const drawX = this.currentPiece.x + x;
                         const finalDrawY = drawY + y;
-                        this.drawPixelBlock(drawX, finalDrawY, this.currentPiece.color);
+                        
+                        if (this.currentPiece.isBomb) {
+                            // ボムブロックの特別描画
+                            this.drawBombBlockOnBoard(drawX, finalDrawY);
+                        } else {
+                            // 通常のピース描画
+                            this.drawPixelBlock(drawX, finalDrawY, this.currentPiece.color);
+                        }
                     }
                 }
             }
@@ -944,6 +1317,9 @@ class TetrisGame {
         
         // ウルトエフェクトを描画
         this.drawUltEffect();
+        
+        // ボムブロック消去エフェクトを描画
+        this.drawBombClearEffect();
     }
     
     // ライン消去エフェクト描画（8bit風）
@@ -1010,7 +1386,7 @@ class TetrisGame {
     
     // 次のピースを描画
     drawNextPiece() {
-        this.nextCtx.fillStyle = '#000000';
+        this.nextCtx.fillStyle = '#121212'; // より黒寄りのグレーに変更
         this.nextCtx.fillRect(0, 0, this.nextCanvas.width, this.nextCanvas.height);
         
         if (this.nextPiece) {
@@ -1021,17 +1397,94 @@ class TetrisGame {
             for (let y = 0; y < this.nextPiece.shape.length; y++) {
                 for (let x = 0; x < this.nextPiece.shape[y].length; x++) {
                     if (this.nextPiece.shape[y][x]) {
-                        this.drawNextPixelBlock(
-                            this.nextCtx,
-                            offsetX + x * cellSize,
-                            offsetY + y * cellSize,
-                            cellSize,
-                            this.nextPiece.color
-                        );
+                        if (this.nextPiece.isBomb) {
+                            // ボムブロックの特別描画
+                            this.drawBombBlock(
+                                this.nextCtx,
+                                offsetX + x * cellSize,
+                                offsetY + y * cellSize,
+                                cellSize
+                            );
+                        } else {
+                            // 通常のピース描画
+                            this.drawNextPixelBlock(
+                                this.nextCtx,
+                                offsetX + x * cellSize,
+                                offsetY + y * cellSize,
+                                cellSize,
+                                this.nextPiece.color
+                            );
+                        }
                     }
                 }
             }
         }
+    }
+    
+    // 次の次のピースを描画
+    drawNextNextPiece() {
+        const canvas = document.getElementById('next-next-canvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        if (this.nextNextPiece) {
+            const cellSize = 15;
+            const offsetX = Math.floor((canvas.width - this.nextNextPiece.shape[0].length * cellSize) / 2);
+            const offsetY = Math.floor((canvas.height - this.nextNextPiece.shape.length * cellSize) / 2);
+            
+            for (let y = 0; y < this.nextNextPiece.shape.length; y++) {
+                for (let x = 0; x < this.nextNextPiece.shape[y].length; x++) {
+                    if (this.nextNextPiece.shape[y][x]) {
+                        if (this.nextNextPiece.isBomb) {
+                            this.drawBombBlock(ctx, offsetX + x * cellSize, offsetY + y * cellSize, cellSize);
+                        } else {
+                            this.drawNextPixelBlock(ctx, offsetX + x * cellSize, offsetY + y * cellSize, cellSize, this.nextNextPiece.color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // 次の次の次のピースを描画
+    drawNextNextNextPiece() {
+        const canvas = document.getElementById('next-next-next-canvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        if (this.nextNextNextPiece) {
+            const cellSize = 15;
+            const offsetX = Math.floor((canvas.width - this.nextNextNextPiece.shape[0].length * cellSize) / 2);
+            const offsetY = Math.floor((canvas.height - this.nextNextNextPiece.shape.length * cellSize) / 2);
+            
+            for (let y = 0; y < this.nextNextNextPiece.shape.length; y++) {
+                for (let x = 0; x < this.nextNextNextPiece.shape[y].length; x++) {
+                    if (this.nextNextNextPiece.shape[y][x]) {
+                        if (this.nextNextNextPiece.isBomb) {
+                            this.drawBombBlock(ctx, offsetX + x * cellSize, offsetY + y * cellSize, cellSize);
+                        } else {
+                            this.drawNextPixelBlock(ctx, offsetX + x * cellSize, offsetY + y * cellSize, cellSize, this.nextNextNextPiece.color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // ボムブロックの特別描画
+    drawBombBlock(ctx, x, y, size) {
+        // 爆弾の絵文字（💣）を描画
+        ctx.font = `${size}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000000';
+        ctx.fillText('💣', x + size/2, y + size/2);
     }
     
     // 次のピース用の8bit風ピクセルブロック描画
@@ -1103,7 +1556,6 @@ class TetrisGame {
             this.isHardDropping = false; // 操作を再度有効化
         }, this.hardDropAnimationDuration);
     }
-    
 
     
     // ハードドロップエフェクト描画
@@ -1234,7 +1686,7 @@ class TetrisGame {
         // ゲームが開始されていない場合はスペースキーで開始
         if (!this.gameLoop && !this.isGameOver) {
             if (e.code === 'Space') {
-                e.preventDefault();
+                e.preventDefault(); // ブラウザのスクロールを防ぐ
                 this.startGame();
                 return;
             }
@@ -1246,7 +1698,7 @@ class TetrisGame {
         
         // スペースキーは一時停止状態でも処理する
         if (e.code === 'Space') {
-            e.preventDefault();
+            e.preventDefault(); // ブラウザのスクロールを防ぐ
             this.togglePause();
             return;
         }
@@ -1275,27 +1727,34 @@ class TetrisGame {
         
         switch (e.code) {
             case 'ArrowLeft':
+                e.preventDefault(); // ブラウザのスクロールを防ぐ
                 this.movePiece(-1, 0);
                 break;
             case 'ArrowRight':
+                e.preventDefault(); // ブラウザのスクロールを防ぐ
                 this.movePiece(1, 0);
                 break;
             case 'ArrowDown':
+                e.preventDefault(); // ブラウザのスクロールを防ぐ
                 if (!this.movePiece(0, 1)) {
                     this.lockPiece();
                 }
                 break;
             case 'ArrowUp':
+                e.preventDefault(); // ブラウザのスクロールを防ぐ
                 this.rotatePiece();
                 break;
             case 'KeyC':
+                e.preventDefault(); // ブラウザのデフォルト動作を防ぐ
                 console.log('C key pressed, calling executeHold');
                 this.executeHold();
                 break;
             case 'KeyX':
+                e.preventDefault(); // ブラウザのデフォルト動作を防ぐ
                 this.hardDrop();
                 break;
             case 'KeyU':
+                e.preventDefault(); // ブラウザのデフォルト動作を防ぐ
                 this.activateUlt();
                 break;
         }
@@ -1310,6 +1769,19 @@ class TetrisGame {
         this.isPaused = false;
         this.gameLoop = setInterval(() => this.update(), GAME_CONFIG.FRAME_TIME); // 60 FPS
         this.dropTime = 0;
+        
+        // 複数の次のピースを初期化
+        this.generateNextPiece();
+        this.generateNextNextPiece();
+        this.generateNextNextNextPiece();
+        
+        // 初期背景色を設定
+        this.updateBackgroundColor();
+        
+        // 次のピースを描画
+        this.drawNextPiece();
+        this.drawNextNextPiece();
+        this.drawNextNextNextPiece();
         
         // ゲーム開始後にボタンを表示
         this.showGameButtons();
@@ -1326,6 +1798,11 @@ class TetrisGame {
         if (this.isUltActive && Date.now() - this.ultStartTime >= GAME_CONFIG.ULT_DURATION) {
             this.deactivateUlt();
         }
+    
+        // クールダウン表示を定期的に更新
+        if (Date.now() % GAME_CONFIG.COUNTDOWN_UPDATE_INTERVAL < GAME_CONFIG.FRAME_TIME) {
+            this.updateUltCountdown();
+        }
         
         this.dropTime += GAME_CONFIG.FRAME_TIME;
         
@@ -1338,6 +1815,7 @@ class TetrisGame {
         
         this.draw();
     }
+    
     
     // 一時停止切り替え
     togglePause() {
@@ -1375,7 +1853,32 @@ class TetrisGame {
         this.hideGameButtons();
         
         document.getElementById('final-score').textContent = this.score;
-        document.getElementById('game-over').classList.remove('hidden');
+        
+        // ゲームオーバー表示のアニメーション開始
+        this.showGameOverAnimation();
+    }
+    
+    // ゲームオーバー表示のアニメーション
+    showGameOverAnimation() {
+        const gameOverElement = document.getElementById('game-over');
+        
+        // 初期状態を設定（画面外の上から）
+        gameOverElement.style.display = 'block';
+        gameOverElement.style.opacity = '0';
+        gameOverElement.style.transform = 'translate(-50%, -150%) scale(0.8)';
+        gameOverElement.classList.remove('hidden');
+        
+        // アニメーション開始
+        requestAnimationFrame(() => {
+            gameOverElement.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            gameOverElement.style.opacity = '1';
+            gameOverElement.style.transform = 'translate(-50%, -50%) scale(1)';
+            
+            // アニメーション完了後の処理
+            setTimeout(() => {
+                gameOverElement.classList.add('showing');
+            }, 800);
+        });
     }
     
     // ボタンを無効化
@@ -1430,11 +1933,24 @@ class TetrisGame {
         this.cleanup();
         this.initializeGameState();
         this.initializeBoard();
+        
+        // デバッグ用：リセット後のボード状態を確認
+        console.log(`Game reset - Board height: ${this.board.length}`);
+        console.log(`Board structure after reset:`, this.board.map((row, index) => `Row ${index}: [${row.join(', ')}]`));
+        
         this.updateDisplay();
         this.generateNextPiece();
+        this.generateNextNextPiece();
+        this.generateNextNextNextPiece();
         this.spawnNewPiece();
         this.draw();
+        this.drawNextPiece();
+        this.drawNextNextPiece();
+        this.drawNextNextNextPiece();
         this.drawHoldPiece();
+        
+        // 音声コンテキストを再初期化
+        this.setupAudio();
         
         // ウルト表示を更新
         this.updateUltDisplay();
@@ -1445,7 +1961,19 @@ class TetrisGame {
         // ゲーム開始前の状態に戻す
         this.hideGameButtons();
         
-        document.getElementById('game-over').classList.add('hidden');
+        // ゲームオーバー表示を完全にリセット
+        const gameOverElement = document.getElementById('game-over');
+        if (gameOverElement) {
+            gameOverElement.classList.add('hidden');
+            gameOverElement.classList.remove('showing');
+            gameOverElement.style.transition = 'none';
+            gameOverElement.style.opacity = '';
+            gameOverElement.style.transform = '';
+            gameOverElement.style.display = 'none'; // 強制的に非表示
+        }
+        
+        // ゲームオーバー状態をリセット
+        this.isGameOver = false;
     }
     
     // リソースクリーンアップ
@@ -1459,14 +1987,21 @@ class TetrisGame {
         // BGM停止
         this.stopBGM();
         
-        // 音声コンテキストをクリーンアップ
-        if (this.soundContext && this.soundContext.state !== 'closed') {
-            this.soundContext.close();
+        // 音声コンテキストの状態をリセット（完全に閉じない）
+        if (this.soundContext && this.soundContext.state === 'suspended') {
+            this.soundContext.resume();
         }
         
         // アニメーションをクリア
         this.lineAnimation = [];
         this.hardDropEffect = null;
+        this.bombClearAnimation = [];
+
+        // ウルト関連のタイマーをクリア
+        if (this._ultCooldownTimer) {
+            clearTimeout(this._ultCooldownTimer);
+            this._ultCooldownTimer = null;
+        }
         
         // イベントリスナーをクリーンアップ（必要に応じて）
         // 注意: キーボードイベントはグローバルなので削除しない
@@ -1475,16 +2010,124 @@ class TetrisGame {
     // ウルトゲージをチャージ
     chargeUlt(amount) {
         if (this.ultCharge < GAME_CONFIG.ULT_ACTIVATION_COST) {
+            const oldCharge = this.ultCharge;
             this.ultCharge = Math.min(GAME_CONFIG.ULT_ACTIVATION_COST, this.ultCharge + amount);
+            
+            // 100%に達した時のみ特殊効果音を再生
+            if (this.ultCharge >= GAME_CONFIG.ULT_ACTIVATION_COST && oldCharge < GAME_CONFIG.ULT_ACTIVATION_COST) {
+                this.playUltReadySound();
+            }
+            
             this.updateUltDisplay();
         }
     }
     
-    // ウルト発動
+    // ウルト準備完了効果音
+    playUltReadySound() {
+        if (!this.soundContext) return;
+        
+        try {
+            // 準備完了音（上昇音階）
+            const frequencies = [440, 554, 659, 784, 880];
+            const duration = GAME_CONFIG.SOUND_DURATION_MEDIUM;
+            const gainValue = GAME_CONFIG.SOUND_GAIN_VALUE;
+            const fadeOutValue = GAME_CONFIG.SOUND_FADE_OUT_VALUE;
+            
+            frequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = this.soundContext.createOscillator();
+                    const gainNode = this.soundContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.soundContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, this.soundContext.currentTime);
+                    oscillator.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(gainValue, this.soundContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(fadeOutValue, this.soundContext.currentTime + duration);
+                    
+                    oscillator.start(this.soundContext.currentTime);
+                    oscillator.stop(this.soundContext.currentTime + duration);
+                }, index * duration * 1000);
+            });
+            
+        } catch (error) {
+            console.log('Failed to play ult ready sound');
+        }
+    }
+    
+    // 落下間隔を更新（共通の倍率計算を使用）
+    updateDropInterval() {
+        // テンポ倍率を計算
+        const tempoMultiplier = Math.min(
+            GAME_CONFIG.BGM_MAX_TEMPO,
+            GAME_CONFIG.BGM_BASE_TEMPO + (this.level - 1) * GAME_CONFIG.BGM_TEMPO_INCREASE_PER_LEVEL
+        );
+        
+        // 落下間隔をテンポ倍率に基づいて計算
+        // 倍率が上がるほど落下間隔が短くなる（速くなる）
+        const baseInterval = GAME_CONFIG.INITIAL_DROP_INTERVAL;
+        const minInterval = GAME_CONFIG.MIN_DROP_INTERVAL;
+        
+        // テンポ倍率に反比例して落下間隔を調整
+        this.dropInterval = Math.max(minInterval, baseInterval / tempoMultiplier);
+        
+        console.log(`落下間隔更新: レベル${this.level}, テンポ倍率${tempoMultiplier.toFixed(1)}x, 落下間隔${this.dropInterval.toFixed(0)}ms`);
+    }
+    
+    // 背景色を更新
+    updateBackgroundColor() {
+        // 既存のレベルクラスを削除
+        document.body.classList.remove('level-1', 'level-2', 'level-3', 'level-4', 'level-5', 'level-6', 'level-7', 'level-8', 'level-9', 'level-10');
+        
+        // 現在のレベルに応じたクラスを追加
+        const levelClass = `level-${Math.min(this.level, 10)}`;
+        document.body.classList.add(levelClass);
+        
+        console.log(`背景色更新: レベル${this.level}, クラス: ${levelClass}`);
+    }
+    
+    // レベルアップ効果音
+    playLevelUpSound() {
+        if (!this.soundContext) return;
+        
+        try {
+            // レベルアップ音（上昇音階）
+            const frequencies = [523, 659, 784, 1047, 1319]; // C, E, G, C, E
+            const duration = 0.08;
+            const gainValue = 0.4;
+            const fadeOutValue = 0.01;
+            
+            frequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = this.soundContext.createOscillator();
+                    const gainNode = this.soundContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.soundContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, this.soundContext.currentTime);
+                    oscillator.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(gainValue, this.soundContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(fadeOutValue, this.soundContext.currentTime + duration);
+                    
+                    oscillator.start(this.soundContext.currentTime);
+                    oscillator.stop(this.soundContext.currentTime + duration);
+                }, index * duration * 1000);
+            });
+            
+        } catch (error) {
+            console.log('Failed to play level up sound');
+        }
+    }
+    
     activateUlt() {
         if (this.ultCharge < GAME_CONFIG.ULT_ACTIVATION_COST || 
             this.isUltActive || 
-            Date.now() < this.ultCooldownEnd) {
+            Date.now() < this.ultCooldownEnd ||
+            this.isPaused) { // 一時停止中はウルト使用不可
             return false;
         }
         
@@ -1504,14 +2147,31 @@ class TetrisGame {
             this.deactivateUlt();
         }, GAME_CONFIG.ULT_DURATION);
         
+        // UI 初期更新
         this.updateUltDisplay();
+    
+        // クールダウン終了直後に UI を強制更新（(1) が残るのを確実に防ぐ）
+        if (this._ultCooldownTimer) clearTimeout(this._ultCooldownTimer);
+        this._ultCooldownTimer = setTimeout(
+            () => this.updateUltDisplay(),
+            Math.max(0, this.ultCooldownEnd - Date.now() + GAME_CONFIG.COOLDOWN_UI_UPDATE_OFFSET)
+        );
+    
         return true;
     }
+    
     
     // ウルト終了
     deactivateUlt() {
         this.isUltActive = false;
         this.ultEffect = null;
+        
+        // ウルト効果終了時に次のピースを通常のピースに戻す
+        if (this.nextPiece && this.nextPiece.isBomb) {
+            this.generateNextPiece();
+            this.drawNextPiece();
+        }
+        
         this.updateUltDisplay();
     }
     
@@ -1525,16 +2185,25 @@ class TetrisGame {
         this.ultBombMode();
     }
     
+
+    
     // ウルト効果: ボムモード
     ultBombMode() {
-        // 次のピースがボムピースになる
-        this.nextPiece = {
+        // 現在のピースをボムピースに置き換え（1x1の爆弾）
+        this.currentPiece = {
             type: 'BOMB',
             shape: [[1]],
             color: '#ff0000',
-            isBomb: true
+            isBomb: true,
+            x: Math.floor(this.BOARD_WIDTH / 2) - Math.floor(1 / 2),
+            y: 0
         };
-        this.drawNextPiece();
+        
+        // 次のピースは通常のピースのまま（ボムピースにしない）
+        // 画面を更新
+        this.draw();
+        
+        console.log('ウルト使用: 現在のミノをボムピースに置き換え');
     }
     
     // ウルト効果音
@@ -1544,7 +2213,9 @@ class TetrisGame {
         try {
             // ウルト発動音（上昇音階）
             const frequencies = [440, 554, 659, 784, 880, 1047, 1175, 1319];
-            const duration = 0.1;
+            const duration = GAME_CONFIG.SOUND_DURATION_SHORT;
+            const gainValue = GAME_CONFIG.SOUND_GAIN_VALUE;
+            const fadeOutValue = GAME_CONFIG.SOUND_FADE_OUT_VALUE;
             
             frequencies.forEach((freq, index) => {
                 setTimeout(() => {
@@ -1557,8 +2228,8 @@ class TetrisGame {
                     oscillator.frequency.setValueAtTime(freq, this.soundContext.currentTime);
                     oscillator.type = 'sawtooth';
                     
-                    gainNode.gain.setValueAtTime(0.3, this.soundContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.soundContext.currentTime + duration);
+                    gainNode.gain.setValueAtTime(gainValue, this.soundContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(fadeOutValue, this.soundContext.currentTime + duration);
                     
                     oscillator.start(this.soundContext.currentTime);
                     oscillator.stop(this.soundContext.currentTime + duration);
@@ -1582,25 +2253,87 @@ class TetrisGame {
         if (ultButton) {
             const canUse = this.ultCharge >= GAME_CONFIG.ULT_ACTIVATION_COST && 
                           !this.isUltActive && 
-                          Date.now() >= this.ultCooldownEnd;
+                          Date.now() >= this.ultCooldownEnd &&
+                          !this.isPaused; // 一時停止中は使用不可
             
             ultButton.disabled = !canUse;
             ultButton.classList.toggle('ready', canUse);
             ultButton.classList.toggle('active', this.isUltActive);
             ultButton.classList.toggle('cooldown', !canUse && Date.now() < this.ultCooldownEnd);
+            
+            // クールダウン時間の表示を更新
+            this.updateUltCountdown();
         }
+    }
+    
+    // ウルトクールダウン時間の表示更新
+    updateUltCountdown() {
+        const ultButton = document.getElementById('ult-btn');
+        const ultText = ultButton?.querySelector('.ult-text');
+        const ultCountdown = ultButton?.querySelector('.ult-countdown');
+        
+        if (!ultButton || !ultText || !ultCountdown) return;
+        
+        // // クールダウン中の場合
+        // if (Date.now() < this.ultCooldownEnd) {
+        //     const remainingTime = Math.ceil((this.ultCooldownEnd - Date.now()) / 1000);
+            
+        //     // 残り時間が1秒未満の場合は通常テキストを表示
+        //     if (remainingTime < 1) {
+        //         ultText.classList.remove('hidden');
+        //         ultCountdown.classList.add('hidden');
+        //     } else {
+        //         ultCountdown.textContent = `(${remainingTime})`;
+        //         ultText.classList.add('hidden');
+        //         ultCountdown.classList.remove('hidden');
+        //     }
+        // } else {
+        //     // クールダウン終了
+        //     ultText.classList.remove('hidden');
+        //     ultCountdown.classList.add('hidden');
+        // }
+        const now = Date.now();
+        const remainingMs = this.ultCooldownEnd - now;
+        if (remainingMs <= 0) {
+            // 終了：必ずカウント表示を消して通常テキストへ
+            ultText.classList.remove('hidden');
+            ultCountdown.classList.add('hidden');
+            ultCountdown.textContent = '';
+            return;
+        }
+        // 進行中：切り上げ表示（1,2,3,...）
+        const remainingSec = Math.ceil(remainingMs / 1000);
+        ultCountdown.textContent = `(${remainingSec})`;
+        ultText.classList.add('hidden');
+        ultCountdown.classList.remove('hidden');
+        
+        // デバッグ用ログ（必要に応じてコメントアウト）
+        // console.log('Cooldown check:', {
+        //     now: Date.now(),
+        //     cooldownEnd: this.ultCooldownEnd,
+        //     remaining: remainingTime,
+        //     isActive: Date.now() < this.ultCooldownEnd
+        // });
     }
     
     // ボム爆発効果
     explodeBomb() {
         const bombX = this.currentPiece.x;
         const bombY = this.currentPiece.y;
+        const explosionRange = GAME_CONFIG.BOMB_EXPLOSION_RANGE;
         
-        // 3x3の範囲でブロックを消去
-        for (let y = bombY - 1; y <= bombY + 1; y++) {
-            for (let x = bombX - 1; x <= bombX + 1; x++) {
+        // 爆発で消えるブロックの位置を記録
+        const clearedBlocks = [];
+        
+        // 爆発範囲内のブロックを消去
+        for (let y = bombY - explosionRange; y <= bombY + explosionRange; y++) {
+            for (let x = bombX - explosionRange; x <= bombX + explosionRange; x++) {
                 if (y >= 0 && y < this.BOARD_HEIGHT && x >= 0 && x < this.BOARD_WIDTH) {
-                    this.board[y][x] = 0;
+                    if (this.board[y][x] !== 0) {
+                        // 消えるブロックの位置を記録
+                        clearedBlocks.push({ x: x, y: y, color: this.board[y][x] });
+                        this.board[y][x] = 0;
+                    }
                 }
             }
         }
@@ -1611,9 +2344,15 @@ class TetrisGame {
         // 爆発エフェクト
         this.startExplosionEffect(bombX, bombY);
         
+        // 消えたブロックのライン消しエフェクトを開始
+        this.startBombClearEffect(clearedBlocks);
+        
         // スコア加算
-        this.score += 500;
+        this.score += GAME_CONFIG.BOMB_EXPLOSION_SCORE;
         this.updateDisplay();
+        
+        // 爆発後にブロックを落下させる
+        this.dropBlocksAfterExplosion();
     }
     
     // 爆発効果音
@@ -1650,7 +2389,7 @@ class TetrisGame {
             x: x,
             y: y,
             startTime: Date.now(),
-            duration: 1000
+            duration: GAME_CONFIG.EXPLOSION_EFFECT_DURATION
         };
     }
     
@@ -1668,14 +2407,14 @@ class TetrisGame {
         
         const centerX = this.explosionEffect.x * this.CELL_SIZE + this.CELL_SIZE / 2;
         const centerY = this.explosionEffect.y * this.CELL_SIZE + this.CELL_SIZE / 2;
-        const radius = progress * 50;
+        const radius = progress * 80; // 5x5範囲に合わせて半径を拡大
         
         this.ctx.save();
         this.ctx.globalAlpha = 1 - progress;
         
-        // 爆発の円形エフェクト
+        // 爆発の円形エフェクト（5x5範囲）
         this.ctx.strokeStyle = '#ff0000';
-        this.ctx.lineWidth = 3;
+        this.ctx.lineWidth = 4;
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         this.ctx.stroke();
@@ -1686,6 +2425,13 @@ class TetrisGame {
         this.ctx.arc(centerX, centerY, radius * 0.7, 0, Math.PI * 2);
         this.ctx.fill();
         
+        // 外側の光るリング（5x5範囲の強調）
+        this.ctx.strokeStyle = '#ff8000';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius * 0.9, 0, Math.PI * 2);
+        this.ctx.stroke();
+        
         this.ctx.restore();
     }
     
@@ -1693,20 +2439,191 @@ class TetrisGame {
     drawUltEffect() {
         if (!this.isUltActive) return;
         
+        // ウルト発動中の画面全体のエフェクト
         const elapsed = Date.now() - this.ultStartTime;
         const progress = Math.min(elapsed / GAME_CONFIG.ULT_DURATION, 1);
         
+        // 進行度に応じてエフェクトの強度を調整
+        const intensity = Math.sin(progress * Math.PI * 4) * 0.3 + 0.1; // 0.1〜0.4の範囲
+        
         this.ctx.save();
+        this.ctx.globalAlpha = intensity;
         
-        // 画面全体にボムモードエフェクト
-        const alpha = 0.1 * Math.sin(progress * Math.PI * 10);
-        this.ctx.globalAlpha = alpha;
-        
-        // ボムモード用の赤いエフェクト
-        this.ctx.fillStyle = '#ff0000';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // ピクセル風のパターンのみ表示（画面全体の光は削除）
+        this.drawUltPixelPattern(intensity);
         
         this.ctx.restore();
+    }
+    
+    // ウルトエフェクト用のピクセルパターン描画
+    drawUltPixelPattern(intensity) {
+        const patternSize = 20;
+        const alpha = intensity * 0.5;
+        
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        
+        for (let y = 0; y < this.canvas.height; y += patternSize) {
+            for (let x = 0; x < this.canvas.width; x += patternSize) {
+                if ((x + y) % (patternSize * 2) === 0) {
+                    this.ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+    }
+    
+    // 爆発後のブロック落下処理
+    dropBlocksAfterExplosion() {
+        // 爆発エフェクトの表示時間を待ってからブロックを落下させる
+        setTimeout(() => {
+            // 各列について、下から上に向かってブロックを落下させる
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                this.dropColumnAfterExplosion(x);
+            }
+            
+            // 落下後にライン消去チェックを行う
+            setTimeout(() => {
+                this.clearLines();
+            }, GAME_CONFIG.DROP_ANIMATION_DELAY);
+        }, GAME_CONFIG.EXPLOSION_DELAY_BEFORE_DROP);
+    }
+    
+    // ボムで消えたブロックのライン消しエフェクトを開始
+    startBombClearEffect(clearedBlocks) {
+        // 各ブロックの位置でライン消しエフェクトを開始
+        clearedBlocks.forEach(block => {
+            this.startBombBlockClearAnimation(block.x, block.y, block.color);
+        });
+    }
+    
+    // ボムで消えた個別ブロックのアニメーション
+    startBombBlockClearAnimation(x, y, color) {
+        // 既存のライン消しアニメーションと同様のエフェクト
+        const animation = {
+            x: x,
+            y: y,
+            color: color,
+            progress: 0,
+            startTime: Date.now(),
+            duration: GAME_CONFIG.BOMB_CLEAR_ANIMATION_DURATION
+        };
+        
+        // ボムブロック消去アニメーション配列に追加
+        if (!this.bombClearAnimation) {
+            this.bombClearAnimation = [];
+        }
+        this.bombClearAnimation.push(animation);
+        
+        // アニメーション完了後に配列から削除
+        setTimeout(() => {
+            if (this.bombClearAnimation) {
+                this.bombClearAnimation = this.bombClearAnimation.filter(anim => 
+                    anim.x !== x || anim.y !== y
+                );
+            }
+        }, animation.duration);
+    }
+    
+    // ボムブロック消去エフェクトの描画
+    drawBombClearEffect() {
+        if (!this.bombClearAnimation || this.bombClearAnimation.length === 0) return;
+        
+        this.bombClearAnimation.forEach(animation => {
+            const elapsed = Date.now() - animation.startTime;
+            const progress = Math.min(elapsed / animation.duration, 1);
+            
+            if (progress >= 1) return;
+            
+            // ライン消しエフェクトと同様の描画処理
+            this.drawBombBlockClearEffect(animation.x, animation.y, progress, animation.color);
+        });
+    }
+    
+    // ボムブロック消去エフェクトの個別描画
+    drawBombBlockClearEffect(x, y, progress, color) {
+        const cellX = x * this.CELL_SIZE;
+        const cellY = y * this.CELL_SIZE;
+        const cellSize = this.CELL_SIZE;
+        
+        // 8bit風のピクセル化されたエフェクト
+        const alpha = 1 - progress;
+        const pulse = Math.sin(progress * Math.PI * 8) * 0.5 + 0.5;
+        
+        this.ctx.save();
+        
+        // ピクセル風の光る効果
+        const colors = ['#ffff00', '#ff0000', '#00ff00', '#0000ff', '#ff00ff'];
+        const colorIndex = Math.floor(progress * colors.length * 2) % colors.length;
+        
+        // メインブロック（元の色を保持）
+        this.ctx.fillStyle = `rgba(255, 255, 0, ${alpha * pulse})`;
+        this.ctx.fillRect(cellX + 1, cellY + 1, cellSize - 2, cellSize - 2);
+        
+        // ピクセル風のハイライト
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha * pulse})`;
+        this.ctx.fillRect(cellX + 2, cellY + 2, 2, 2);
+        this.ctx.fillRect(cellX + cellSize - 4, cellY + 2, 2, 2);
+        this.ctx.fillRect(cellX + 2, cellY + cellSize - 4, 2, 2);
+        
+        // ピクセル風のシャドウ
+        this.ctx.fillStyle = `rgba(0, 0, 0, ${alpha * pulse})`;
+        this.ctx.fillRect(cellX + cellSize - 4, cellY + 2, 2, cellSize - 4);
+        this.ctx.fillRect(cellX + 2, cellY + cellSize - 4, cellSize - 4, 2);
+        
+        this.ctx.restore();
+        
+        // 8bit風のパーティクル効果
+        if (progress > 0.5) {
+            this.draw8bitParticles(cellX + cellSize / 2, cellY + cellSize / 2, progress);
+        }
+    }
+    
+    // 特定の列のブロックを落下させる
+    dropColumnAfterExplosion(x) {
+        // 下から上に向かって処理
+        for (let y = this.BOARD_HEIGHT - 1; y >= 0; y--) {
+            // 空のセルを見つけた場合
+            if (this.board[y][x] === 0) {
+                // その上にある最初のブロックを探す
+                let sourceY = y - 1;
+                while (sourceY >= 0 && this.board[sourceY][x] === 0) {
+                    sourceY--;
+                }
+                
+                // ブロックが見つかった場合、それを下に移動
+                if (sourceY >= 0 && this.board[sourceY][x] !== 0) {
+                    this.board[y][x] = this.board[sourceY][x];
+                    this.board[sourceY][x] = 0;
+                }
+            }
+        }
+    }
+
+    // ボムブロックをメインゲームボードに描画するためのヘルパー関数
+    drawBombBlockOnBoard(x, y) {
+        const cellX = x * this.CELL_SIZE;
+        const cellY = y * this.CELL_SIZE;
+        const cellSize = this.CELL_SIZE;
+
+        // 爆弾の絵文字（💣）を描画
+        this.ctx.font = `${cellSize - 4}px Arial, sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillText('💣', cellX + cellSize/2, cellY + cellSize/2);
+    }
+
+    // 落下位置予測の描画（ボムブロックの場合は爆弾絵文字で表示）
+    drawBombPreview(x, y) {
+        const cellSize = this.CELL_SIZE;
+        const cellX = x * cellSize;
+        const cellY = y * cellSize;
+
+        // 爆弾の絵文字（💣）を描画
+        this.ctx.font = `${cellSize - 4}px Arial, sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillText('💣', cellX + cellSize/2, cellY + cellSize/2);
     }
 }
 

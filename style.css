@@ -21,6 +21,152 @@ body {
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    transition: background 0.5s ease, background-image 0.5s ease;
+}
+
+/* レベルごとの背景色クラス - より高い優先度で適用 */
+body.level-1 {
+    background: #0f0f23 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #1a1a2e 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #16213e 0%, transparent 50%) !important;
+}
+
+body.level-2 {
+    background: #1a0f1a !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #2a1a2e 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #26161e 0%, transparent 50%) !important;
+}
+
+body.level-3 {
+    background: #2a0f12 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #3a1a15 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #361615 0%, transparent 50%) !important;
+}
+
+body.level-4 {
+    background: #3a0f0a !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #4a1a0c 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #46160c 0%, transparent 50%) !important;
+}
+
+body.level-5 {
+    background: #4a0f02 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #5a1a03 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #561603 0%, transparent 50%) !important;
+}
+
+body.level-6 {
+    background: #5a0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #6a1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #661600 0%, transparent 50%) !important;
+}
+
+body.level-7 {
+    background: #6a0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #7a1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #761600 0%, transparent 50%) !important;
+}
+
+body.level-8 {
+    background: #7a0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #8a1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #861600 0%, transparent 50%) !important;
+}
+
+body.level-9 {
+    background: #8a0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #9a1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #961600 0%, transparent 50%) !important;
+}
+
+body.level-10 {
+    background: #9a0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #aa1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #a61600 0%, transparent 50%) !important;
+}
+
+body.level-11 {
+    background: #aa0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ba1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #b61600 0%, transparent 50%) !important;
+}
+
+body.level-12 {
+    background: #ba0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ca1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #c61600 0%, transparent 50%) !important;
+}
+
+body.level-13 {
+    background: #ca0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #da1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #d61600 0%, transparent 50%) !important;
+}
+
+body.level-14 {
+    background: #da0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ea1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #e61600 0%, transparent 50%) !important;
+}
+
+body.level-15 {
+    background: #ea0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #fa1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #f61600 0%, transparent 50%) !important;
+}
+
+body.level-16 {
+    background: #fa0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ff1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #ff1600 0%, transparent 50%) !important;
+}
+
+body.level-17 {
+    background: #ff0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ff1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #ff1600 0%, transparent 50%) !important;
+}
+
+body.level-18 {
+    background: #ff0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ff1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #ff1600 0%, transparent 50%) !important;
+}
+
+body.level-19 {
+    background: #ff0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ff1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #ff1600 0%, transparent 50%) !important;
+}
+
+body.level-20 {
+    background: #ff0f00 !important;
+    background-image: 
+        radial-gradient(circle at 25% 25%, #ff1a00 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, #ff1600 0%, transparent 50%) !important;
 }
 
 .game-container {
@@ -57,46 +203,107 @@ body {
 }
 
 .game-header h1 {
-    font-size: 2rem;
+    font-size: 4rem;
     color: #00ff00;
     text-shadow: 
         2px 2px 0px #000000,
         4px 4px 0px #00ff00;
     letter-spacing: 2px;
-    animation: glitch 2s infinite;
+    animation: glow 3s ease-in-out infinite;
 }
 
-@keyframes glitch {
-    0%, 100% { transform: translate(0); }
-    20% { transform: translate(-2px, 2px); }
-    40% { transform: translate(-2px, -2px); }
-    60% { transform: translate(2px, 2px); }
-    80% { transform: translate(2px, -2px); }
+@keyframes glow {
+    0%, 100% { 
+        text-shadow: 
+            2px 2px 0px #000000,
+            4px 4px 0px #00ff00;
+    }
+    50% { 
+        text-shadow: 
+            2px 2px 0px #000000,
+            4px 4px 0px #00ff00,
+            0 0 20px #00ff00,
+            0 0 40px #00ff00;
+    }
 }
 
+/* メインゲームエリア: 左にテトリスのフィールド、右にサイドパネル */
 .game-area {
     display: flex;
-    gap: 20px;
+    gap: 30px;
     justify-content: center;
     align-items: flex-start;
+    margin-bottom: 20px;
 }
 
-.game-info {
+/* 左側: テトリスのフィールド */
+.game-board-container {
+    flex-shrink: 0;
+    background: #000000;
+    border: 4px solid #00ff00;
+    padding: 15px;
+    box-shadow: 
+        0 0 0 4px #000000,
+        0 0 0 8px #00ff00,
+        0 0 20px rgba(0, 255, 0, 0.5);
+    position: relative;
+}
+
+.game-board-container::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(0, 255, 0, 0.1) 10px,
+        rgba(0, 255, 0, 0.1) 20px
+    );
+    z-index: -1;
+}
+
+/* 右側: ホールド・NEXT・ウルト */
+.side-panel {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    min-width: 180px;
+    min-width: 200px;
+    max-width: 200px;
 }
 
-.score-section, .level-section, .lines-section, .next-section, .controls-section, .hold-section, .ult-section {
+/* 次の次のピースと次の次の次のピースを横に並べる */
+.next-pieces-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* 下側: ゲーム情報・操作方法 */
+.bottom-panel {
+    margin-top: 20px;
+}
+
+.bottom-panel .game-info {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* 各セクションの基本スタイル */
+.hold-section, .next-section, .next-next-section, .next-next-next-section, .stats-section, .ult-section, .controls-section {
     background: #000000;
-    padding: 15px;
+    padding: 12px;
     border: 2px solid #00ff00;
     position: relative;
 }
 
-.score-section::before, .level-section::before, .lines-section::before, 
-.next-section::before, .controls-section::before, .hold-section::before {
+.hold-section::before, .next-section::before, .next-next-section::before, .next-next-next-section::before, .stats-section::before, 
+.ult-section::before, .controls-section::before {
     content: '';
     position: absolute;
     top: 0;
@@ -113,9 +320,103 @@ body {
     pointer-events: none;
 }
 
+/* セクションヘッダー */
+.hold-section h3, .next-section h3, .next-next-section h3, .next-next-next-section h3, .stats-section h3, 
+.ult-section h3, .controls-section h3 {
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+    color: #00ff00;
+    text-shadow: 1px 1px 0px #000000;
+    text-align: center;
+}
+
+/* ホールドとネクストセクション */
+.hold-section, .next-section {
+    width: 200px;
+}
+
+.next-next-section, .next-next-next-section {
+    width: 150px;
+    overflow: hidden;
+}
+
+.hold-section canvas, .next-section canvas, .next-next-section canvas, .next-next-next-section canvas {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+}
+
+/* 統計情報セクション */
+.stats-section {
+    width: 250px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.stat-item .label {
+    font-size: 1rem;
+    color: #00ff00;
+    margin-bottom: 2px;
+}
+
+.stat-item #score, .stat-item #level, .stat-item #lines, .stat-item #ren {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ffff00;
+    text-shadow: 1px 1px 0px #000000;
+}
+
+/* 操作方法セクション */
+.controls-section {
+    width: 250px;
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.control-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.control-item .key {
+    background: #333333;
+    border: 1px solid #00ff00;
+    padding: 2px 4px;
+    border-radius: 3px;
+    color: #00ff00;
+    font-weight: bold;
+    margin-bottom: 2px;
+    min-width: 30px;
+}
+
+.control-item .action {
+    color: #cccccc;
+    font-size: 0.7rem;
+}
+
 /* ウルトセクションの特別なスタイル */
 .ult-section {
     border-color: #ff0000;
+    width: 200px;
 }
 
 .ult-section::before {
@@ -134,10 +435,10 @@ body {
 
 .ult-gauge-container {
     width: 100%;
-    height: 20px;
+    height: 16px;
     background: #333333;
     border: 2px solid #ff0000;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     position: relative;
     overflow: hidden;
 }
@@ -152,7 +453,7 @@ body {
 
 .ult-button {
     width: 100%;
-    padding: 8px;
+    padding: 6px;
     border: 2px solid #ff0000;
     background: #000000;
     color: #ff0000;
@@ -189,15 +490,57 @@ body {
 }
 
 .ult-button.ready {
-    border-color: #00ff00;
-    color: #00ff00;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    border-color: #00bfff;
+    color: #00bfff;
+    background: rgba(0, 191, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 191, 255, 0.6), 
+                0 0 30px rgba(0, 191, 255, 0.4),
+                0 0 45px rgba(0, 191, 255, 0.2);
+    animation: ultReady 0.6s ease-in-out infinite alternate;
+    text-shadow: 0 0 10px rgba(0, 191, 255, 0.8);
 }
 
 .ult-button.ready:hover {
-    background: #00ff00;
+    background: #00bfff;
     color: #000000;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+    box-shadow: 0 0 25px rgba(0, 191, 255, 0.9), 
+                0 0 50px rgba(0, 191, 255, 0.6),
+                0 0 75px rgba(0, 191, 255, 0.3);
+    animation: ultReadyHover 0.4s ease-in-out infinite alternate;
+    text-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+    transform: translateY(-3px) scale(1.08);
+}
+
+@keyframes ultReady {
+    0% {
+        box-shadow: 0 0 15px rgba(0, 191, 255, 0.6), 
+                    0 0 30px rgba(0, 191, 255, 0.4),
+                    0 0 45px rgba(0, 191, 255, 0.2);
+        transform: scale(1);
+        background: rgba(0, 191, 255, 0.1);
+    }
+    100% {
+        box-shadow: 0 0 25px rgba(0, 191, 255, 0.9), 
+                    0 0 50px rgba(0, 191, 255, 0.7),
+                    0 0 75px rgba(0, 191, 255, 0.5);
+        transform: scale(1.08);
+        background: rgba(0, 191, 255, 0.2);
+    }
+}
+
+@keyframes ultReadyHover {
+    0% {
+        box-shadow: 0 0 25px rgba(0, 191, 255, 0.9), 
+                    0 0 50px rgba(0, 191, 255, 0.6),
+                    0 0 75px rgba(0, 191, 255, 0.3);
+        transform: translateY(-3px) scale(1.08);
+    }
+    100% {
+        box-shadow: 0 0 35px rgba(0, 191, 255, 1), 
+                    0 0 70px rgba(0, 191, 255, 0.8),
+                    0 0 100px rgba(0, 191, 255, 0.4);
+        transform: translateY(-3px) scale(1.12);
+    }
 }
 
 .ult-button.active {
@@ -212,6 +555,34 @@ body {
     color: #666666;
     background: #222222;
     cursor: not-allowed;
+}
+
+/* ウルトボタン内のテキストとカウントダウンのスタイル */
+.ult-button .ult-text,
+.ult-button .ult-countdown {
+    display: inline-block;
+    transition: opacity 0.2s ease;
+}
+
+.ult-button .ult-countdown {
+    font-weight: bold;
+    color: #ff6666;
+}
+
+.ult-button.cooldown .ult-countdown {
+    color: #ff8888;
+    animation: countdownPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes countdownPulse {
+    0% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
 }
 
 @keyframes ultActive {
@@ -236,6 +607,35 @@ body {
         0 0 0 4px #000000,
         0 0 0 8px #ff0000,
         0 0 20px rgba(255, 0, 0, 0.5);
+    z-index: 1000;
+    animation: gameOverDropIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* ゲームオーバー表示の落下アニメーション */
+@keyframes gameOverDropIn {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -150%) scale(0.8);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -60%) scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* ゲームオーバー表示前の初期状態 */
+.game-over.hidden {
+    display: none !important;
+}
+
+.game-over.showing {
+    display: block;
+    animation: none;
+    transform: translate(-50%, -50%) scale(1);
 }
 
 .game-over h2 {
@@ -334,8 +734,8 @@ body {
         box-shadow: 
             0 0 0 2px #000000,
             0 0 0 6px #ff0000,
-            0 0 20px rgba(255, 0, 0, 0.8),
-            0 8px 16px rgba(255, 0, 0, 0.4);
+            0 0 30px rgba(255, 0, 0, 1),
+            0 8px 16px rgba(255, 0, 0, 0.6);
     }
     100% {
         box-shadow: 
@@ -385,27 +785,135 @@ body {
     display: none;
 }
 
+.game-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.game-controls button {
+    padding: 12px 25px;
+    border: 2px solid #00ff00;
+    background: #000000;
+    color: #00ff00;
+    font-family: 'DotGothic16', 'Press Start 2P', monospace;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-shadow: 1px 1px 0px #000000;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        0 0 0 2px #000000,
+        0 0 0 4px #00ff00,
+        0 4px 8px rgba(0, 255, 0, 0.3);
+}
+
+.game-controls button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.4), transparent);
+    transition: left 0.4s ease;
+}
+
+.game-controls button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 5px,
+        rgba(0, 255, 0, 0.1) 5px,
+        rgba(0, 255, 0, 0.1) 10px
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.game-controls button:hover {
+    background: #00ff00;
+    color: #000000;
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 0 0 2px #000000,
+        0 0 0 6px #00ff00,
+        0 0 20px rgba(0, 255, 0, 0.8),
+        0 8px 16px rgba(0, 255, 0, 0.4);
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+    animation: buttonGlow 0.5s ease-in-out infinite alternate;
+}
+
+.game-controls button:hover::before {
+    left: 100%;
+}
+
+.game-controls button:hover::after {
+    opacity: 1;
+}
+
+.game-controls button:active {
+    transform: translateY(-1px) scale(0.98);
+    box-shadow: 
+        0 0 0 2px #000000,
+        0 0 0 4px #00ff00,
+        0 0 10px rgba(0, 255, 0, 0.6);
+}
+
+@keyframes buttonGlow {
+    0% {
+        box-shadow: 
+            0 0 0 2px #000000,
+            0 0 0 6px #00ff00,
+            0 0 20px rgba(0, 255, 0, 0.8),
+            0 8px 16px rgba(0, 255, 0, 0.4);
+    }
+    100% {
+        box-shadow: 
+            0 0 0 2px #000000,
+            0 0 0 6px #00ff00,
+            0 0 30px rgba(0, 255, 0, 1),
+            0 8px 16px rgba(0, 255, 0, 0.6);
+    }
+}
+
 @media (max-width: 768px) {
     .game-area {
         flex-direction: column;
         align-items: center;
     }
     
-    .game-info {
-        order: 2;
+    .side-panel {
         flex-direction: row;
         flex-wrap: wrap;
         justify-content: center;
-        min-width: auto;
+        gap: 10px;
     }
     
-    .score-section, .level-section, .lines-section {
-        flex: 1;
-        min-width: 80px;
+    .hold-section, .next-section, .next-next-section, .next-next-next-section, .ult-section {
+        width: 150px;
     }
     
-    .next-section, .controls-section {
-        flex-basis: 100%;
+    .next-next-section, .next-next-next-section {
+        width: 170px;
+    }
+    
+    .bottom-panel .game-info {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .stats-section, .controls-section {
+        width: 250px;
     }
     
     .game-header h1 {

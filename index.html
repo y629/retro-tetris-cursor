@@ -3,64 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>テトリス</title>
+    <title>TETRIS</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="game-container">
         <div class="game-header">
-            <h1>テトリス</h1>
+            <h1>TETRIS</h1>
         </div>
-        
+
         <div class="game-area">
-            <div class="game-info">
-                <div class="hold-section">
-                    <h3>ホールド</h3>
-                    <canvas id="hold-canvas" width="120" height="120"></canvas>
-                </div>
-                
-                <div class="ult-section">
-                    <h3>ウルトゲージ</h3>
-                    <div class="ult-gauge-container">
-                        <div id="ult-gauge" class="ult-gauge"></div>
-                    </div>
-                    <button id="ult-btn" class="ult-button">ウルト発動</button>
-                </div>
-                
-                <div class="score-section">
-                    <h3>スコア</h3>
-                    <div id="score">0</div>
-                </div>
-                
-                <div class="level-section">
-                    <h3>レベル</h3>
-                    <div id="level">1</div>
-                </div>
-                
-                <div class="lines-section">
-                    <h3>ライン</h3>
-                    <div id="lines">0</div>
-                </div>
-                
-                <div class="next-section">
-                    <h3>次のピース</h3>
-                    <canvas id="next-canvas" width="120" height="120"></canvas>
-                </div>
-                
-                <div class="controls-section">
-                    <h3>操作方法</h3>
-                    <div class="controls-text">
-                        <p>← → : 移動</p>
-                        <p>↓ : 高速落下</p>
-                        <p>↑ : 回転</p>
-                        <p>C : ホールド</p>
-                        <p>X : ハードドロップ</p>
-                        <p>Space : 一時停止</p>
-                        <p>U : ウルト発動</p>
-                    </div>
-                </div>
-            </div>
-            
+            <!-- 左側: テトリスのフィールド -->
             <div class="game-board-container">
                 <canvas id="game-canvas" width="300" height="600"></canvas>
                 <div id="game-over" class="game-over hidden">
@@ -69,15 +22,114 @@
                     <button id="restart-btn">もう一度プレイ</button>
                 </div>
             </div>
+
+            <!-- 右側: ホールド・NEXT・ウルト -->
+            <div class="side-panel">
+                <div class="hold-section">
+                    <h3>ホールド</h3>
+                    <canvas id="hold-canvas" width="80" height="80"></canvas>
+                </div>
+
+                <div class="next-section">
+                    <h3>次のピース</h3>
+                    <canvas id="next-canvas" width="80" height="80"></canvas>
+                </div>
+
+                <!-- ★ ここを外枠から右へ少しはみ出して横に拡張 -->
+                <div class="next-pieces-row extend-right">
+                    <div class="next-next-section">
+                        <h3>次の次のピース</h3>
+                        <canvas id="next-next-canvas" width="120" height="80"></canvas>
+                    </div>
+
+                    <div class="next-next-next-section">
+                        <h3>次の次の次のピース</h3>
+                        <canvas id="next-next-next-canvas" width="120" height="80"></canvas>
+                    </div>
+                </div>
+
+                <!-- ★ ウルト領域も右へせり出し＆横長化 -->
+                <div class="ult-section extend-right">
+                    <h3>💣 ウルトゲージ</h3>
+                    <div class="ult-gauge-container">
+                        <div id="ult-gauge" class="ult-gauge"></div>
+                    </div>
+                    <button id="ult-btn" class="ult-button">
+                        <span class="ult-text">💣 ウルト発動</span>
+                        <span class="ult-countdown hidden"></span>
+                    </button>
+                </div>
+            </div>
         </div>
-        
+
+        <!-- 下側: ゲーム情報・操作方法 -->
+        <div class="bottom-panel">
+            <div class="game-info">
+                <div class="stats-section">
+                    <h3>ゲーム情報</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="label">スコア:</span>
+                            <span id="score">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">テンポ倍率:</span>
+                            <span id="tempo-multiplier">1.0x</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">ライン:</span>
+                            <span id="lines">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">REN:</span>
+                            <span id="ren">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <h3>操作方法</h3>
+                    <div class="controls-grid">
+                        <div class="control-item">
+                            <span class="key">← →</span>
+                            <span class="action">移動</span>
+                        </div>
+                        <div class="control-item">
+                            <span class="key">↓</span>
+                            <span class="action">高速落下</span>
+                        </div>
+                        <div class="control-item">
+                            <span class="key">↑</span>
+                            <span class="action">回転</span>
+                        </div>
+                        <div class="control-item">
+                            <span class="key">C</span>
+                            <span class="action">ホールド</span>
+                        </div>
+                        <div class="control-item">
+                            <span class="key">X</span>
+                            <span class="action">ハードドロップ</span>
+                        </div>
+                        <div class="control-item">
+                            <span class="key">Space</span>
+                            <span class="action">一時停止</span>
+                        </div>
+                        <div class="control-item">
+                            <span class="key">U</span>
+                            <span class="action">💣 ウルト発動</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="game-controls">
             <button id="start-btn">スタート</button>
             <button id="pause-btn">一時停止</button>
             <button id="reset-btn">リセット</button>
         </div>
     </div>
-    
+
     <script src="tetris.js"></script>
 </body>
 </html>
