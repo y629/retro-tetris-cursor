@@ -48,7 +48,14 @@ const GAME_CONFIG = {
     // エフェクト設定
     WINDOW_SHAKE_INTENSITY: 10,
     PARTICLE_COUNT: 4,
-    PARTICLE_DISTANCE: 20
+    PARTICLE_DISTANCE: 20,
+    
+    // ウルト設定
+    ULT_CHARGE_PER_LINE: 25, // 1ライン消去で25%チャージ
+    ULT_CHARGE_PER_PIECE: 5,  // 1ピース固定で5%チャージ
+    ULT_ACTIVATION_COST: 100, // ウルト発動に必要なチャージ量
+    ULT_DURATION: 5000,       // ウルト効果持続時間（5秒）
+    ULT_COOLDOWN: 10000       // ウルト使用後のクールダウン（10秒）
 };
 
 /**
@@ -213,6 +220,13 @@ class TetrisGame {
         this.hardDropEffect = null;
         this.hardDropAnimationDuration = GAME_CONFIG.HARD_DROP_DURATION;
         this.isHardDropping = false;
+        
+        // ウルト関連の状態
+        this.ultCharge = 0;
+        this.isUltActive = false;
+        this.ultStartTime = 0;
+        this.ultCooldownEnd = 0;
+        this.ultEffect = null;
     }
     
     // テトリスピースの定義（8bit風カラーパレット）
@@ -286,6 +300,12 @@ class TetrisGame {
         document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
         document.getElementById('reset-btn').addEventListener('click', () => this.resetGame());
         document.getElementById('restart-btn').addEventListener('click', () => this.resetGame());
+        
+        // ウルトボタンのイベントリスナー
+        const ultBtn = document.getElementById('ult-btn');
+        if (ultBtn) {
+            ultBtn.addEventListener('click', () => this.activateUlt());
+        }
     }
     
     // オーディオ設定
@@ -721,6 +741,15 @@ class TetrisGame {
     
     // ピースをボードに固定
     lockPiece() {
+        // ボムピースの処理
+        if (this.currentPiece && this.currentPiece.isBomb) {
+            this.explodeBomb();
+            this.canHold = true;
+            this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_PIECE);
+            this.spawnNewPiece();
+            return;
+        }
+        
         for (let y = 0; y < this.currentPiece.shape.length; y++) {
             for (let x = 0; x < this.currentPiece.shape[y].length; x++) {
                 if (this.currentPiece.shape[y][x]) {
@@ -735,6 +764,10 @@ class TetrisGame {
         
         this.canHold = true; // ピースが固定されたらホールド可能になる
         console.log('Piece locked, canHold set to true');
+        
+        // ウルトゲージをチャージ
+        this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_PIECE);
+        
         this.clearLines();
         this.spawnNewPiece();
     }
@@ -800,6 +833,9 @@ class TetrisGame {
         const points = GAME_CONFIG.SCORE_MULTIPLIERS[linesCleared] * this.level;
         this.score += points;
         this.lines += linesCleared;
+        
+        // ウルトゲージをチャージ
+        this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_LINE * linesCleared);
         
         // レベルアップ（10ライン毎）
         const newLevel = Math.floor(this.lines / 10) + 1;
@@ -902,6 +938,12 @@ class TetrisGame {
         
         // ハードドロップエフェクトを描画
         this.drawHardDropEffect();
+        
+        // 爆発エフェクトを描画
+        this.drawExplosionEffect();
+        
+        // ウルトエフェクトを描画
+        this.drawUltEffect();
     }
     
     // ライン消去エフェクト描画（8bit風）
@@ -1253,6 +1295,9 @@ class TetrisGame {
             case 'KeyX':
                 this.hardDrop();
                 break;
+            case 'KeyU':
+                this.activateUlt();
+                break;
         }
         
         this.draw();
@@ -1276,6 +1321,11 @@ class TetrisGame {
     // ゲーム更新
     update() {
         if (this.isPaused || this.isGameOver) return;
+        
+        // ウルト効果終了チェック
+        if (this.isUltActive && Date.now() - this.ultStartTime >= GAME_CONFIG.ULT_DURATION) {
+            this.deactivateUlt();
+        }
         
         this.dropTime += GAME_CONFIG.FRAME_TIME;
         
@@ -1386,6 +1436,9 @@ class TetrisGame {
         this.draw();
         this.drawHoldPiece();
         
+        // ウルト表示を更新
+        this.updateUltDisplay();
+        
         // ボタンを有効化
         this.enableButtons();
         
@@ -1418,6 +1471,243 @@ class TetrisGame {
         // イベントリスナーをクリーンアップ（必要に応じて）
         // 注意: キーボードイベントはグローバルなので削除しない
     }
+
+    // ウルトゲージをチャージ
+    chargeUlt(amount) {
+        if (this.ultCharge < GAME_CONFIG.ULT_ACTIVATION_COST) {
+            this.ultCharge = Math.min(GAME_CONFIG.ULT_ACTIVATION_COST, this.ultCharge + amount);
+            this.updateUltDisplay();
+        }
+    }
+    
+    // ウルト発動
+    activateUlt() {
+        if (this.ultCharge < GAME_CONFIG.ULT_ACTIVATION_COST || 
+            this.isUltActive || 
+            Date.now() < this.ultCooldownEnd) {
+            return false;
+        }
+        
+        this.ultCharge = 0;
+        this.isUltActive = true;
+        this.ultStartTime = Date.now();
+        this.ultCooldownEnd = Date.now() + GAME_CONFIG.ULT_COOLDOWN;
+        
+        // ウルト効果音を再生
+        this.playUltSound();
+        
+        // ウルトエフェクトを開始
+        this.startUltEffect();
+        
+        // ウルト効果持続時間後に終了
+        setTimeout(() => {
+            this.deactivateUlt();
+        }, GAME_CONFIG.ULT_DURATION);
+        
+        this.updateUltDisplay();
+        return true;
+    }
+    
+    // ウルト終了
+    deactivateUlt() {
+        this.isUltActive = false;
+        this.ultEffect = null;
+        this.updateUltDisplay();
+    }
+    
+    // ウルトエフェクト開始
+    startUltEffect() {
+        // ボムモードのみ
+        this.ultEffect = 'bombMode';
+        console.log('ウルト発動: ボムモード');
+        
+        // ボムモードを開始
+        this.ultBombMode();
+    }
+    
+    // ウルト効果: ボムモード
+    ultBombMode() {
+        // 次のピースがボムピースになる
+        this.nextPiece = {
+            type: 'BOMB',
+            shape: [[1]],
+            color: '#ff0000',
+            isBomb: true
+        };
+        this.drawNextPiece();
+    }
+    
+    // ウルト効果音
+    playUltSound() {
+        if (!this.soundContext) return;
+        
+        try {
+            // ウルト発動音（上昇音階）
+            const frequencies = [440, 554, 659, 784, 880, 1047, 1175, 1319];
+            const duration = 0.1;
+            
+            frequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = this.soundContext.createOscillator();
+                    const gainNode = this.soundContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.soundContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, this.soundContext.currentTime);
+                    oscillator.type = 'sawtooth';
+                    
+                    gainNode.gain.setValueAtTime(0.3, this.soundContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.soundContext.currentTime + duration);
+                    
+                    oscillator.start(this.soundContext.currentTime);
+                    oscillator.stop(this.soundContext.currentTime + duration);
+                }, index * duration * 1000);
+            });
+            
+        } catch (error) {
+            console.log('Failed to play ult sound');
+        }
+    }
+    
+    // ウルト表示更新
+    updateUltDisplay() {
+        const ultGauge = document.getElementById('ult-gauge');
+        const ultButton = document.getElementById('ult-btn');
+        
+        if (ultGauge) {
+            ultGauge.style.width = `${(this.ultCharge / GAME_CONFIG.ULT_ACTIVATION_COST) * 100}%`;
+        }
+        
+        if (ultButton) {
+            const canUse = this.ultCharge >= GAME_CONFIG.ULT_ACTIVATION_COST && 
+                          !this.isUltActive && 
+                          Date.now() >= this.ultCooldownEnd;
+            
+            ultButton.disabled = !canUse;
+            ultButton.classList.toggle('ready', canUse);
+            ultButton.classList.toggle('active', this.isUltActive);
+            ultButton.classList.toggle('cooldown', !canUse && Date.now() < this.ultCooldownEnd);
+        }
+    }
+    
+    // ボム爆発効果
+    explodeBomb() {
+        const bombX = this.currentPiece.x;
+        const bombY = this.currentPiece.y;
+        
+        // 3x3の範囲でブロックを消去
+        for (let y = bombY - 1; y <= bombY + 1; y++) {
+            for (let x = bombX - 1; x <= bombX + 1; x++) {
+                if (y >= 0 && y < this.BOARD_HEIGHT && x >= 0 && x < this.BOARD_WIDTH) {
+                    this.board[y][x] = 0;
+                }
+            }
+        }
+        
+        // 爆発効果音
+        this.playExplosionSound();
+        
+        // 爆発エフェクト
+        this.startExplosionEffect(bombX, bombY);
+        
+        // スコア加算
+        this.score += 500;
+        this.updateDisplay();
+    }
+    
+    // 爆発効果音
+    playExplosionSound() {
+        if (!this.soundContext) return;
+        
+        try {
+            const oscillator = this.soundContext.createOscillator();
+            const gainNode = this.soundContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.soundContext.destination);
+            
+            // 爆発音（低周波数から高周波数へ）
+            oscillator.frequency.setValueAtTime(50, this.soundContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1000, this.soundContext.currentTime + 0.3);
+            oscillator.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0.5, this.soundContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.soundContext.currentTime + 0.3);
+            
+            oscillator.start(this.soundContext.currentTime);
+            oscillator.stop(this.soundContext.currentTime + 0.3);
+            
+        } catch (error) {
+            console.log('Failed to play explosion sound');
+        }
+    }
+    
+    // 爆発エフェクト開始
+    startExplosionEffect(x, y) {
+        // 爆発エフェクトのアニメーション
+        this.explosionEffect = {
+            x: x,
+            y: y,
+            startTime: Date.now(),
+            duration: 1000
+        };
+    }
+    
+    // 爆発エフェクト描画
+    drawExplosionEffect() {
+        if (!this.explosionEffect) return;
+        
+        const elapsed = Date.now() - this.explosionEffect.startTime;
+        const progress = Math.min(elapsed / this.explosionEffect.duration, 1);
+        
+        if (progress >= 1) {
+            this.explosionEffect = null;
+            return;
+        }
+        
+        const centerX = this.explosionEffect.x * this.CELL_SIZE + this.CELL_SIZE / 2;
+        const centerY = this.explosionEffect.y * this.CELL_SIZE + this.CELL_SIZE / 2;
+        const radius = progress * 50;
+        
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        
+        // 爆発の円形エフェクト
+        this.ctx.strokeStyle = '#ff0000';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        this.ctx.stroke();
+        
+        // 内側の光る円
+        this.ctx.fillStyle = '#ffff00';
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius * 0.7, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.restore();
+    }
+    
+    // ウルトエフェクト描画
+    drawUltEffect() {
+        if (!this.isUltActive) return;
+        
+        const elapsed = Date.now() - this.ultStartTime;
+        const progress = Math.min(elapsed / GAME_CONFIG.ULT_DURATION, 1);
+        
+        this.ctx.save();
+        
+        // 画面全体にボムモードエフェクト
+        const alpha = 0.1 * Math.sin(progress * Math.PI * 10);
+        this.ctx.globalAlpha = alpha;
+        
+        // ボムモード用の赤いエフェクト
+        this.ctx.fillStyle = '#ff0000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.ctx.restore();
+    }
 }
 
 // ゲーム初期化
@@ -1427,4 +1717,5 @@ document.addEventListener('DOMContentLoaded', () => {
     game = new TetrisGame();
     game.draw();
     game.drawHoldPiece();
+    game.updateUltDisplay();
 });
