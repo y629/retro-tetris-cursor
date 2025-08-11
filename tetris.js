@@ -607,6 +607,41 @@ class TetrisGame {
         }
     }
     
+    // ゲームクリア効果音（勝利ファンファーレ風）
+    playGameClearSound() {
+        if (!this.soundContext) return;
+        
+        try {
+            // 勝利ファンファーレ風の音階
+            const frequencies = [523, 659, 784, 1047, 1319, 1568, 2093, 1568, 1319, 1047, 784, 659, 523]; // C, E, G, C, E, G, C, G, E, C, G, E, C
+            const duration = 0.08;
+            const gainValue = 0.6;
+            const fadeOutValue = 0.01;
+            
+            frequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = this.soundContext.createOscillator();
+                    const gainNode = this.soundContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.soundContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, this.soundContext.currentTime);
+                    oscillator.type = 'square'; // 8bit風の音色
+                    
+                    gainNode.gain.setValueAtTime(gainValue, this.soundContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(fadeOutValue, this.soundContext.currentTime + duration);
+                    
+                    oscillator.start(this.soundContext.currentTime);
+                    oscillator.stop(this.soundContext.currentTime + duration);
+                }, index * duration * 1000);
+            });
+            
+        } catch (error) {
+            console.log('Failed to play game clear sound');
+        }
+    }
+    
     // ゲームオーバー効果音
     playGameOverSound() {
         if (!this.soundContext) return;
@@ -1080,6 +1115,9 @@ class TetrisGame {
         
         // ウルトゲージをチャージ
         this.chargeUlt(GAME_CONFIG.ULT_CHARGE_PER_LINE * safeLinesCleared);
+        
+        // クリア条件チェック（テンポ倍率最大で100,000点以上）
+        this.checkClearCondition();
         
             // レベルアップ（設定されたライン数毎）
         const newLevel = Math.floor(this.lines / GAME_CONFIG.LINES_PER_LEVEL) + 1;
@@ -1831,6 +1869,32 @@ class TetrisGame {
         }
     }
     
+    // ゲームクリア
+    gameClear() {
+        this.isGameOver = true;
+        this.isGameCleared = true;
+        
+        // ゲームループを停止
+        if (this.gameLoop) {
+            cancelAnimationFrame(this.gameLoop);
+            this.gameLoop = null;
+        }
+        
+        // BGMを停止
+        this.stopBGM();
+        
+        // クリア効果音を再生
+        this.playGameClearSound();
+        
+        // クリア画面を表示
+        this.showGameClearAnimation();
+        
+        // ボタンを無効化
+        this.disableButtons();
+        
+        console.log('🎉 ゲームクリア！ テンポ倍率最大で100,000点達成！');
+    }
+    
     // ゲームオーバー
     gameOver() {
         this.isGameOver = true;
@@ -1856,6 +1920,84 @@ class TetrisGame {
         
         // ゲームオーバー表示のアニメーション開始
         this.showGameOverAnimation();
+    }
+    
+    // ゲームクリア表示のアニメーション
+    showGameClearAnimation() {
+        const gameClearElement = document.getElementById('game-clear');
+        if (!gameClearElement) return;
+        
+        // クリア画面の情報を更新
+        const clearScoreElement = document.getElementById('clear-final-score');
+        const clearLevelElement = document.getElementById('clear-final-level');
+        const clearTempoElement = document.getElementById('clear-final-tempo');
+        
+        if (clearScoreElement) clearScoreElement.textContent = this.score.toLocaleString();
+        if (clearLevelElement) clearLevelElement.textContent = this.level;
+        if (clearTempoElement) {
+            const tempoMultiplier = Math.min(
+                GAME_CONFIG.BGM_MAX_TEMPO,
+                GAME_CONFIG.BGM_BASE_TEMPO + (this.currentBGMLevel - 1) * GAME_CONFIG.BGM_TEMPO_INCREASE_PER_LEVEL
+            );
+            clearTempoElement.textContent = tempoMultiplier.toFixed(1) + 'x';
+        }
+        
+        // クリア画面を表示
+        gameClearElement.style.display = 'block';
+        gameClearElement.style.opacity = '0';
+        gameClearElement.style.transform = 'translate(-50%, -150%) scale(0.8)';
+        gameClearElement.classList.remove('hidden');
+        
+        // アニメーション実行
+        requestAnimationFrame(() => {
+            gameClearElement.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            gameClearElement.style.opacity = '1';
+            gameClearElement.style.transform = 'translate(-50%, -50%) scale(1)';
+            
+            // アニメーション完了後の処理
+            setTimeout(() => {
+                gameClearElement.classList.add('showing');
+            }, 800);
+        });
+        
+        // クリア画面のボタンにイベントリスナーを設定
+        this.setupClearButtons();
+    }
+    
+    // クリア画面のボタン設定
+    setupClearButtons() {
+        const clearRestartBtn = document.getElementById('clear-restart-btn');
+        const clearShareBtn = document.getElementById('clear-share-btn');
+        
+        if (clearRestartBtn) {
+            clearRestartBtn.addEventListener('click', () => {
+                this.resetGame();
+                // クリア画面を非表示
+                const gameClearElement = document.getElementById('game-clear');
+                if (gameClearElement) {
+                    gameClearElement.classList.add('hidden');
+                    gameClearElement.style.display = 'none';
+                }
+            });
+        }
+        
+        if (clearShareBtn) {
+            clearShareBtn.addEventListener('click', () => {
+                // 結果をシェア（クリップボードにコピー）
+                const shareText = `🎉 テトリスゲームクリア！\nスコア: ${this.score.toLocaleString()}\nレベル: ${this.level}\nテンポ: ${this.currentBGMLevel}x`;
+                navigator.clipboard.writeText(shareText).then(() => {
+                    clearShareBtn.textContent = 'コピー完了！';
+                    setTimeout(() => {
+                        clearShareBtn.textContent = '結果をシェア';
+                    }, 2000);
+                }).catch(() => {
+                    clearShareBtn.textContent = 'コピー失敗';
+                    setTimeout(() => {
+                        clearShareBtn.textContent = '結果をシェア';
+                    }, 2000);
+                });
+            });
+        }
     }
     
     // ゲームオーバー表示のアニメーション
@@ -2086,6 +2228,25 @@ class TetrisGame {
         document.body.classList.add(levelClass);
         
         console.log(`背景色更新: レベル${this.level}, クラス: ${levelClass}`);
+    }
+    
+    // クリア条件チェック
+    checkClearCondition() {
+        // 現在のテンポ倍率を取得
+        const tempoMultiplier = Math.min(
+            GAME_CONFIG.BGM_MAX_TEMPO,
+            GAME_CONFIG.BGM_BASE_TEMPO + (this.currentBGMLevel - 1) * GAME_CONFIG.BGM_TEMPO_INCREASE_PER_LEVEL
+        );
+        
+        // テンポ倍率が最大（5.0倍）でスコアが100,000点以上の場合
+        if (tempoMultiplier >= GAME_CONFIG.BGM_MAX_TEMPO && this.score >= 100000) {
+            this.gameClear();
+        }
+        
+        // テスト用：スコアが1,000点以上でクリア画面（コメントアウト）
+        // if (this.score >= 1000) {
+        //     this.gameClear();
+        // }
     }
     
     // レベルアップ効果音

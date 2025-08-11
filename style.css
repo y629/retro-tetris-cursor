@@ -611,6 +611,126 @@ body.level-20 {
     animation: gameOverDropIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 }
 
+.game-clear {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #000000, #1a0f1a);
+    border: 4px solid #ffd700;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 
+        0 0 0 4px #000000,
+        0 0 0 8px #ffd700,
+        0 0 40px rgba(255, 215, 0, 0.9),
+        0 0 80px rgba(255, 215, 0, 0.4);
+    z-index: 1000;
+    min-width: 500px;
+    border-radius: 15px;
+    animation: clearGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes clearGlow {
+    0% {
+        box-shadow: 
+            0 0 0 4px #000000,
+            0 0 0 8px #ffd700,
+            0 0 40px rgba(255, 215, 0, 0.9),
+            0 0 80px rgba(255, 215, 0, 0.4);
+    }
+    100% {
+        box-shadow: 
+            0 0 0 4px #000000,
+            0 0 0 8px #ffd700,
+            0 0 60px rgba(255, 215, 0, 1.0),
+            0 0 120px rgba(255, 215, 0, 0.6);
+    }
+}
+
+.clear-header h2 {
+    font-size: 2.5rem;
+    color: #ffd700;
+    text-shadow: 
+        2px 2px 0px #000000,
+        4px 4px 0px #ffd700,
+        0 0 20px rgba(255, 215, 0, 0.8);
+    margin-bottom: 10px;
+    animation: clearTitlePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes clearTitlePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.clear-stars {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    animation: starTwinkle 1s ease-in-out infinite;
+}
+
+@keyframes starTwinkle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+.clear-content {
+    margin: 25px 0;
+}
+
+.clear-content p {
+    font-size: 1.2rem;
+    color: #ffffff;
+    margin: 10px 0;
+    text-shadow: 1px 1px 0px #000000;
+}
+
+.clear-score {
+    color: #00ff00 !important;
+    font-weight: bold;
+    font-size: 1.4rem !important;
+}
+
+.clear-level {
+    color: #00ffff !important;
+}
+
+.clear-tempo {
+    color: #ff80ff !important;
+}
+
+.clear-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.clear-buttons button {
+    background: linear-gradient(45deg, #ffd700, #ffed4e);
+    color: #000000;
+    border: none;
+    padding: 15px 25px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.clear-buttons button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(45deg, #ffed4e, #ffd700);
+}
+
+.clear-buttons button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 /* ゲームオーバー表示の落下アニメーション */
 @keyframes gameOverDropIn {
     0% {
