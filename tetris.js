@@ -2791,63 +2791,9 @@ class TetrisGame {
 // ゲーム初期化
 let game;
 
-// レスポンシブ対応のためのキャンバスサイズ調整関数
-function adjustCanvasSizes() {
-    const gameCanvas = document.getElementById('game-canvas');
-    const holdCanvas = document.getElementById('hold-canvas');
-    const nextCanvas = document.getElementById('next-canvas');
-    const nextNextCanvas = document.getElementById('next-next-canvas');
-    const nextNextNextCanvas = document.getElementById('next-next-next-canvas');
-    
-    if (gameCanvas && game) {
-        // ゲームキャンバスのサイズを動的に調整
-        const container = gameCanvas.parentElement;
-        const containerWidth = container.clientWidth;
-        const containerHeight = Math.min(window.innerHeight * 0.8, containerWidth * 2);
-        
-        // アスペクト比を保ちながらサイズ調整
-        const cellSize = Math.min(containerWidth / GAME_CONFIG.BOARD_WIDTH, containerHeight / GAME_CONFIG.BOARD_HEIGHT);
-        
-        gameCanvas.style.width = `${cellSize * GAME_CONFIG.BOARD_WIDTH}px`;
-        gameCanvas.style.height = `${cellSize * GAME_CONFIG.BOARD_HEIGHT}px`;
-        
-        // ゲームインスタンスのセルサイズも更新
-        game.CELL_SIZE = cellSize;
-    }
-    
-    // サイドパネルのキャンバスサイズも調整
-    if (holdCanvas && nextCanvas && nextNextCanvas && nextNextNextCanvas) {
-        const sidePanelWidth = document.querySelector('.side-panel').clientWidth;
-        const sideCanvasSize = Math.min(sidePanelWidth * 0.8, 80);
-        
-        [holdCanvas, nextCanvas].forEach(canvas => {
-            canvas.style.width = `${sideCanvasSize}px`;
-            canvas.style.height = `${sideCanvasSize}px`;
-        });
-        
-        [nextNextCanvas, nextNextNextCanvas].forEach(canvas => {
-            canvas.style.width = `${sideCanvasSize * 1.5}px`;
-            canvas.style.height = `${sideCanvasSize}px`;
-        });
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     game = new TetrisGame();
     game.draw();
     game.drawHoldPiece();
     game.updateUltDisplay();
-    
-    // 初期サイズ調整
-    adjustCanvasSizes();
-    
-    // ウィンドウリサイズ時のサイズ調整
-    window.addEventListener('resize', () => {
-        setTimeout(adjustCanvasSizes, 100);
-    });
-    
-    // ブラウザの拡大率変更時にも対応
-    window.addEventListener('orientationchange', () => {
-        setTimeout(adjustCanvasSizes, 300);
-    });
 });
